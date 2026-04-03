@@ -450,19 +450,74 @@
             margin-bottom: 4px;
         }
 
-        /* Responsive */
+        /* Responsive - mobile */
         @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.3rem;
+                margin-bottom: 12px;
+            }
+
+            .panel {
+                padding: 14px;
+            }
+
+            .panel h2 {
+                font-size: 0.95rem;
+                margin-bottom: 10px;
+            }
+
             .settings-row {
                 flex-direction: column;
+                gap: 10px;
             }
 
             .field input {
                 width: 100%;
             }
 
+            .btn {
+                padding: 6px 14px;
+                font-size: 0.85rem;
+            }
+
+            .controls-row .btn {
+                font-size: 0.95rem;
+                padding: 8px 14px;
+            }
+
+            .speed-buttons {
+                flex-wrap: wrap;
+            }
+
+            .speed-btn {
+                padding: 5px 10px;
+                font-size: 0.8rem;
+            }
+
+            .url-row {
+                flex-direction: column;
+            }
+
+            .url-row input {
+                width: 100%;
+            }
+
             .info-icon .tooltip {
                 white-space: normal;
                 width: 200px;
+            }
+
+            .draggable-section {
+                margin-bottom: 12px;
+            }
+
+            .keyboard-hints {
+                padding: 10px 14px;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -478,7 +533,15 @@
             </div>
         </div>
 
-        <!-- Controls (default: before settings) -->
+        <!-- Beat Timeline -->
+        <div class="draggable-section" data-section="beats" id="beatTimeline" style="display:none;">
+            <div class="panel">
+                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎵 拍子時間軸</span></h2>
+                <div id="beatsContainer"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
         <div class="draggable-section" data-section="controls">
             <div class="panel">
                 <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎛️ 播放控制</span></h2>
@@ -488,16 +551,8 @@
                 <div class="current-time" id="currentTimeDisplay">0:00.0</div>
 
                 <div class="controls-row">
-                    <button class="btn btn-secondary" onclick="jumpBeats(-8)" title="上一個八拍">⏪ 8拍</button>
-                    <button class="btn btn-secondary" onclick="jumpBeats(-1)" title="上一拍">◀ 1拍</button>
                     <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
-                    <button class="btn btn-secondary" onclick="jumpBeats(1)" title="下一拍">1拍 ▶</button>
-                    <button class="btn btn-secondary" onclick="jumpBeats(8)" title="下一個八拍">8拍 ⏩</button>
-                </div>
-
-                <div class="controls-row">
-                    <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">🔁 循環播放: OFF</button>
-                    <button class="btn btn-secondary" onclick="jumpToStart()">⏮ 回到開始</button>
+                    <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">循環: OFF</button>
                 </div>
 
                 <div class="speed-control">
@@ -560,14 +615,6 @@
             </div>
         </div>
 
-        <!-- Beat Timeline -->
-        <div class="draggable-section" data-section="beats" id="beatTimeline" style="display:none;">
-            <div class="panel">
-                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎵 拍子時間軸</span></h2>
-                <div id="beatsContainer"></div>
-            </div>
-        </div>
-
         <!-- Config Export/Import -->
         <div class="draggable-section" data-section="config">
             <div class="panel">
@@ -610,12 +657,12 @@
         let endTime = 16.0;
         let updateInterval = null;
 
-        // ==================== Drag & Drop for sections ====================
+        // ==================== Drag & Drop for sections (desktop + touch) ====================
         (function initDragDrop() {
             const container = document.querySelector('.container');
             let draggedEl = null;
 
-            // Only enable draggable when mousedown on the drag icon
+            // --- Desktop: HTML5 drag, only from handle ---
             container.addEventListener('mousedown', function(e) {
                 const icon = e.target.closest('.drag-icon');
                 if (!icon) return;
@@ -676,6 +723,79 @@
                 } else {
                     target.before(draggedEl);
                 }
+            });
+
+            // --- Touch: for iPhone/mobile ---
+            let touchDragEl = null;
+            let touchClone = null;
+            let touchStartY = 0;
+
+            container.addEventListener('touchstart', function(e) {
+                const icon = e.target.closest('.drag-icon');
+                if (!icon) return;
+                const section = icon.closest('.draggable-section');
+                if (!section) return;
+
+                touchDragEl = section;
+                touchStartY = e.touches[0].clientY;
+
+                // Create a visual clone
+                touchClone = section.cloneNode(true);
+                touchClone.style.position = 'fixed';
+                touchClone.style.width = section.offsetWidth + 'px';
+                touchClone.style.opacity = '0.7';
+                touchClone.style.pointerEvents = 'none';
+                touchClone.style.zIndex = '9999';
+                touchClone.style.left = section.getBoundingClientRect().left + 'px';
+                touchClone.style.top = section.getBoundingClientRect().top + 'px';
+                document.body.appendChild(touchClone);
+
+                section.classList.add('dragging');
+                e.preventDefault();
+            }, { passive: false });
+
+            document.addEventListener('touchmove', function(e) {
+                if (!touchDragEl || !touchClone) return;
+                const touch = e.touches[0];
+                const deltaY = touch.clientY - touchStartY;
+                const origTop = touchDragEl.getBoundingClientRect().top;
+                touchClone.style.top = (origTop + deltaY) + 'px';
+
+                // Find drop target
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (elemBelow) {
+                    const target = elemBelow.closest('.draggable-section');
+                    if (target && target !== touchDragEl) {
+                        target.classList.add('drag-over');
+                    }
+                }
+                e.preventDefault();
+            }, { passive: false });
+
+            document.addEventListener('touchend', function(e) {
+                if (!touchDragEl) return;
+
+                // Find final drop target
+                const overEl = document.querySelector('.draggable-section.drag-over');
+                if (overEl && overEl !== touchDragEl) {
+                    const sections = [...container.querySelectorAll('.draggable-section')];
+                    const dragIdx = sections.indexOf(touchDragEl);
+                    const dropIdx = sections.indexOf(overEl);
+                    if (dragIdx < dropIdx) {
+                        overEl.after(touchDragEl);
+                    } else {
+                        overEl.before(touchDragEl);
+                    }
+                }
+
+                touchDragEl.classList.remove('dragging');
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                if (touchClone) {
+                    touchClone.remove();
+                    touchClone = null;
+                }
+                touchDragEl = null;
             });
         })();
 
@@ -977,7 +1097,7 @@
         function toggleLoop() {
             isLooping = !isLooping;
             const btn = document.getElementById('loopBtn');
-            btn.textContent = `🔁 循環播放: ${isLooping ? 'ON' : 'OFF'}`;
+            btn.textContent = `循環: ${isLooping ? 'ON' : 'OFF'}`;
             btn.classList.toggle('btn-active', isLooping);
             updateLoopStatus();
         }
