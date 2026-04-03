@@ -230,76 +230,105 @@
             width: auto;
         }
 
-        /* Beat Timeline */
-        .eight-count-group {
-            margin-bottom: 12px;
+        /* Beat Timeline Slider */
+        .beat-slider-group {
+            margin-bottom: 18px;
         }
 
-        .eight-count-header {
+        .beat-slider-header {
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
             user-select: none;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
-        .eight-count-header:hover .eight-count-label {
+        .beat-slider-header:hover .beat-slider-label {
             color: #bbb;
         }
 
-        .eight-count-toggle {
+        .beat-slider-toggle {
             font-size: 0.75rem;
             color: #888;
             transition: transform 0.2s;
         }
 
-        .eight-count-toggle.collapsed {
+        .beat-slider-toggle.collapsed {
             transform: rotate(-90deg);
         }
 
-        .eight-count-label {
+        .beat-slider-label {
             font-size: 0.8rem;
             color: #888;
             transition: color 0.15s;
         }
 
-        .beats-row.collapsed {
+        .beat-slider-body.collapsed {
             display: none;
         }
 
-        .beats-row {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .beat-btn {
-            width: 52px;
-            height: 42px;
-            border: 2px solid #333;
-            border-radius: 8px;
+        .beat-slider-track {
+            position: relative;
+            width: 100%;
+            height: 40px;
             background: #0f3460;
-            color: #ccc;
-            font-size: 0.9rem;
-            font-weight: bold;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            user-select: none;
         }
 
-        .beat-btn:hover {
-            border-color: #e94560;
-            color: #fff;
-            background: #1a4a8a;
+        .beat-slider-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #c73e54);
+            border-radius: 6px 0 0 6px;
+            pointer-events: none;
+            transition: width 0.08s linear;
         }
 
-        .beat-btn.active {
-            background: #e94560;
-            border-color: #e94560;
-            color: #fff;
+        .beat-slider-thumb {
+            position: absolute;
+            top: -4px;
+            width: 4px;
+            height: 48px;
+            background: #fff;
+            border-radius: 2px;
+            pointer-events: none;
+            transform: translateX(-2px);
+            box-shadow: 0 0 6px rgba(233,69,96,0.6);
+            transition: left 0.08s linear;
+        }
+
+        .beat-tick {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: rgba(255,255,255,0.15);
+            pointer-events: none;
+        }
+
+        .beat-tick.first-of-group {
+            background: rgba(255,255,255,0.35);
+            width: 2px;
+        }
+
+        .beat-tick-label {
+            position: absolute;
+            top: 100%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: #666;
+            margin-top: 3px;
+            pointer-events: none;
+        }
+
+        .beat-tick-label.active {
+            color: #e94560;
+            font-weight: bold;
         }
 
         /* Controls */
@@ -430,12 +459,6 @@
                 width: 100%;
             }
 
-            .beat-btn {
-                width: 42px;
-                height: 36px;
-                font-size: 0.8rem;
-            }
-
             .info-icon .tooltip {
                 white-space: normal;
                 width: 200px;
@@ -448,14 +471,14 @@
         <h1>🩰 舞蹈練習播放器</h1>
 
         <!-- Video -->
-        <div class="draggable-section" draggable="true" data-section="video">
+        <div class="draggable-section" data-section="video">
             <div class="video-wrapper">
                 <div id="player"></div>
             </div>
         </div>
 
         <!-- Controls (default: before settings) -->
-        <div class="draggable-section" draggable="true" data-section="controls">
+        <div class="draggable-section" data-section="controls">
             <div class="panel">
                 <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎛️ 播放控制</span></h2>
                 <div class="progress-bar-container" id="progressBarContainer">
@@ -493,7 +516,7 @@
         </div>
 
         <!-- Settings -->
-        <div class="draggable-section" draggable="true" data-section="settings">
+        <div class="draggable-section" data-section="settings">
             <div class="panel">
                 <h2><span class="drag-handle"><span class="drag-icon">⠿</span> ⚙️ 設定</span></h2>
                 <div class="url-row">
@@ -537,7 +560,7 @@
         </div>
 
         <!-- Beat Timeline -->
-        <div class="draggable-section" draggable="true" data-section="beats" id="beatTimeline" style="display:none;">
+        <div class="draggable-section" data-section="beats" id="beatTimeline" style="display:none;">
             <div class="panel">
                 <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎵 拍子時間軸</span></h2>
                 <div id="beatsContainer"></div>
@@ -545,7 +568,7 @@
         </div>
 
         <!-- Config Export/Import -->
-        <div class="draggable-section" draggable="true" data-section="config">
+        <div class="draggable-section" data-section="config">
             <div class="panel">
                 <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 💾 匯出 / 匯入設定</span></h2>
                 <p style="font-size:0.8rem; color:#888; margin-bottom:10px;">複製下方文字保存，下次貼回即可還原設定</p>
@@ -587,6 +610,20 @@
             const container = document.querySelector('.container');
             let draggedEl = null;
 
+            // Only enable draggable when mousedown on the drag icon
+            container.addEventListener('mousedown', function(e) {
+                const icon = e.target.closest('.drag-icon');
+                if (!icon) return;
+                const section = icon.closest('.draggable-section');
+                if (section) section.setAttribute('draggable', 'true');
+            });
+
+            document.addEventListener('mouseup', function() {
+                document.querySelectorAll('.draggable-section[draggable="true"]').forEach(el => {
+                    el.setAttribute('draggable', 'false');
+                });
+            });
+
             container.addEventListener('dragstart', function(e) {
                 const section = e.target.closest('.draggable-section');
                 if (!section) return;
@@ -597,7 +634,10 @@
 
             container.addEventListener('dragend', function(e) {
                 const section = e.target.closest('.draggable-section');
-                if (section) section.classList.remove('dragging');
+                if (section) {
+                    section.classList.remove('dragging');
+                    section.setAttribute('draggable', 'false');
+                }
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
                 draggedEl = null;
             });
@@ -741,45 +781,111 @@
                 groups[beat.groupIndex].push(beat);
             });
 
+            const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
+
             Object.keys(groups).forEach(groupIdx => {
                 const group = groups[groupIdx];
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'eight-count-group';
+                const groupStart = group[0].time;
+                const groupEnd = group[group.length - 1].time + beatInterval;
+                const groupDuration = groupEnd - groupStart;
 
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'beat-slider-group';
+
+                // Header
                 const header = document.createElement('div');
-                header.className = 'eight-count-header';
+                header.className = 'beat-slider-header';
 
                 const toggle = document.createElement('span');
-                toggle.className = 'eight-count-toggle';
+                toggle.className = 'beat-slider-toggle';
                 toggle.textContent = '▼';
 
                 const label = document.createElement('span');
-                label.className = 'eight-count-label';
-                label.textContent = `第 ${parseInt(groupIdx) + 1} 個八拍 (${group[0].time.toFixed(1)}s ~ ${(group[group.length - 1].time + (beats[1]?.time - beats[0]?.time || 0)).toFixed(1)}s)`;
+                label.className = 'beat-slider-label';
+                label.textContent = `第 ${parseInt(groupIdx) + 1} 個八拍 (${groupStart.toFixed(1)}s ~ ${groupEnd.toFixed(1)}s)`;
 
                 header.appendChild(toggle);
                 header.appendChild(label);
                 groupDiv.appendChild(header);
 
-                const row = document.createElement('div');
-                row.className = 'beats-row';
+                // Slider body (collapsible)
+                const body = document.createElement('div');
+                body.className = 'beat-slider-body';
 
                 header.addEventListener('click', () => {
-                    row.classList.toggle('collapsed');
+                    body.classList.toggle('collapsed');
                     toggle.classList.toggle('collapsed');
                 });
 
+                // Track
+                const track = document.createElement('div');
+                track.className = 'beat-slider-track';
+                track.dataset.groupIdx = groupIdx;
+
+                const fill = document.createElement('div');
+                fill.className = 'beat-slider-fill';
+                fill.id = `slider-fill-${groupIdx}`;
+                track.appendChild(fill);
+
+                // Tick marks for each beat
                 group.forEach(beat => {
-                    const btn = document.createElement('button');
-                    btn.className = 'beat-btn';
-                    btn.id = `beat-${beat.index}`;
-                    btn.textContent = beat.beatNumber;
-                    btn.title = `${beat.time.toFixed(1)}s`;
-                    btn.addEventListener('click', () => jumpToBeat(beat.index));
-                    row.appendChild(btn);
+                    const pct = ((beat.time - groupStart) / groupDuration) * 100;
+
+                    const tick = document.createElement('div');
+                    tick.className = 'beat-tick' + (beat.beatNumber === 1 ? ' first-of-group' : '');
+                    tick.style.left = pct + '%';
+                    track.appendChild(tick);
+
+                    const tickLabel = document.createElement('div');
+                    tickLabel.className = 'beat-tick-label';
+                    tickLabel.id = `tick-label-${beat.index}`;
+                    tickLabel.textContent = beat.beatNumber;
+                    tickLabel.style.left = pct + '%';
+                    track.appendChild(tickLabel);
                 });
 
-                groupDiv.appendChild(row);
+                // Thumb
+                const thumb = document.createElement('div');
+                thumb.className = 'beat-slider-thumb';
+                thumb.id = `slider-thumb-${groupIdx}`;
+                track.appendChild(thumb);
+
+                // Click/drag on track to seek
+                function seekFromEvent(e) {
+                    const rect = track.getBoundingClientRect();
+                    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                    const time = groupStart + ratio * groupDuration;
+                    if (player) player.seekTo(time, true);
+                }
+
+                let isDraggingSlider = false;
+                track.addEventListener('mousedown', (e) => {
+                    isDraggingSlider = true;
+                    seekFromEvent(e);
+                    e.preventDefault();
+                });
+                document.addEventListener('mousemove', (e) => {
+                    if (isDraggingSlider) seekFromEvent(e);
+                });
+                document.addEventListener('mouseup', () => {
+                    isDraggingSlider = false;
+                });
+
+                // Touch support
+                track.addEventListener('touchstart', (e) => {
+                    isDraggingSlider = true;
+                    seekFromEvent(e.touches[0]);
+                    e.preventDefault();
+                });
+                document.addEventListener('touchmove', (e) => {
+                    if (isDraggingSlider) seekFromEvent(e.touches[0]);
+                });
+                document.addEventListener('touchend', () => {
+                    isDraggingSlider = false;
+                });
+
+                body.appendChild(track);
+                groupDiv.appendChild(body);
                 container.appendChild(groupDiv);
             });
         }
@@ -804,9 +910,43 @@
         }
 
         function highlightBeat(index) {
-            document.querySelectorAll('.beat-btn').forEach(btn => btn.classList.remove('active'));
-            const btn = document.getElementById(`beat-${index}`);
-            if (btn) btn.classList.add('active');
+            // Update tick labels
+            document.querySelectorAll('.beat-tick-label').forEach(el => el.classList.remove('active'));
+            const tickLabel = document.getElementById(`tick-label-${index}`);
+            if (tickLabel) tickLabel.classList.add('active');
+
+            // Update slider fills and thumbs
+            if (beats.length === 0) return;
+            const beat = beats[index];
+            const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
+            const currentTime = player ? player.getCurrentTime() : beat.time;
+
+            const groups = {};
+            beats.forEach(b => {
+                if (!groups[b.groupIndex]) groups[b.groupIndex] = [];
+                groups[b.groupIndex].push(b);
+            });
+
+            Object.keys(groups).forEach(gIdx => {
+                const group = groups[gIdx];
+                const gStart = group[0].time;
+                const gEnd = group[group.length - 1].time + beatInterval;
+                const gDuration = gEnd - gStart;
+                const fill = document.getElementById(`slider-fill-${gIdx}`);
+                const thumb = document.getElementById(`slider-thumb-${gIdx}`);
+
+                if (parseInt(gIdx) === beat.groupIndex) {
+                    const pct = Math.max(0, Math.min(100, ((currentTime - gStart) / gDuration) * 100));
+                    if (fill) fill.style.width = pct + '%';
+                    if (thumb) { thumb.style.left = pct + '%'; thumb.style.display = 'block'; }
+                } else if (parseInt(gIdx) < beat.groupIndex) {
+                    if (fill) fill.style.width = '100%';
+                    if (thumb) thumb.style.display = 'none';
+                } else {
+                    if (fill) fill.style.width = '0%';
+                    if (thumb) thumb.style.display = 'none';
+                }
+            });
         }
 
         function togglePlay() {
