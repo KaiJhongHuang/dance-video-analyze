@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>舞蹈練習播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            color: #e94560;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* Video Section */
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .settings-panel h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+
+        .settings-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .field label {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .field input, .field select {
+            background: #0f3460;
+            border: 1px solid #333;
+            color: #eee;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 120px;
+        }
+
+        .field input:focus, .field select:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #c73e54;
+        }
+
+        .btn-secondary {
+            background: #0f3460;
+            color: #eee;
+            border: 1px solid #444;
+        }
+
+        .btn-secondary:hover {
+            background: #1a4a8a;
+        }
+
+        .btn-active {
+            background: #e94560 !important;
+            border-color: #e94560 !important;
+        }
+
+        /* URL input */
+        .url-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .url-row input {
+            flex: 1;
+            width: auto;
+        }
+
+        /* Beat Timeline */
+        .beat-timeline {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .beat-timeline h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+
+        .eight-count-group {
+            margin-bottom: 12px;
+        }
+
+        .eight-count-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .beats-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .beat-btn {
+            width: 52px;
+            height: 42px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #0f3460;
+            color: #ccc;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .beat-btn:hover {
+            border-color: #e94560;
+            color: #fff;
+            background: #1a4a8a;
+        }
+
+        .beat-btn.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: #fff;
+        }
+
+        .beat-btn .beat-time {
+            font-size: 0.6rem;
+            color: #aaa;
+        }
+
+        /* Controls */
+        .controls {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .controls-row .btn {
+            font-size: 1.1rem;
+            padding: 10px 18px;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .speed-control label {
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .speed-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .speed-btn {
+            padding: 6px 12px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #ccc;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .speed-btn:hover {
+            border-color: #e94560;
+        }
+
+        .speed-btn.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: #fff;
+        }
+
+        .loop-status {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .loop-status span {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        /* Progress bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #0f3460;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #e94560;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .current-time {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        /* Keyboard hints */
+        .keyboard-hints {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 15px 20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .keyboard-hints h3 {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .keyboard-hints kbd {
+            background: #0f3460;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #aaa;
+        }
+
+        .hint-row {
+            margin-bottom: 4px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .settings-row {
+                flex-direction: column;
+            }
+
+            .field input {
+                width: 100%;
+            }
+
+            .beat-btn {
+                width: 42px;
+                height: 36px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🩰 舞蹈練習播放器</h1>
+
+        <!-- Video -->
+        <div class="video-wrapper">
+            <div id="player"></div>
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-panel">
+            <h2>⚙️ 設定</h2>
+            <div class="url-row">
+                <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=c4iwo6cxQww">
+                <button class="btn btn-primary" onclick="loadVideo()">載入影片</button>
+            </div>
+            <div class="settings-row">
+                <div class="field">
+                    <label>開始秒數</label>
+                    <input type="number" id="startTime" value="0" step="0.1" min="0">
+                </div>
+                <div class="field">
+                    <label>結束秒數</label>
+                    <input type="number" id="endTime" value="16" step="0.1" min="0">
+                </div>
+                <div class="field">
+                    <label>拍數單位</label>
+                    <select id="beatUnit">
+                        <option value="8">八拍 (組)</option>
+                        <option value="1">拍 (單拍)</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>數量</label>
+                    <input type="number" id="beatCount" value="4" step="1" min="1">
+                </div>
+                <button class="btn btn-primary" onclick="generateBeats()">產生拍子</button>
+                <button class="btn btn-secondary" onclick="getCurrentTime()">取得目前秒數</button>
+            </div>
+        </div>
+
+        <!-- Beat Timeline -->
+        <div class="beat-timeline" id="beatTimeline" style="display:none;">
+            <h2>🎵 拍子時間軸</h2>
+            <div id="beatsContainer"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="progress-bar-container" id="progressBarContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="current-time" id="currentTimeDisplay">0:00.0</div>
+
+            <div class="controls-row">
+                <button class="btn btn-secondary" onclick="jumpBeats(-8)" title="上一個八拍">⏪ 8拍</button>
+                <button class="btn btn-secondary" onclick="jumpBeats(-1)" title="上一拍">◀ 1拍</button>
+                <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
+                <button class="btn btn-secondary" onclick="jumpBeats(1)" title="下一拍">1拍 ▶</button>
+                <button class="btn btn-secondary" onclick="jumpBeats(8)" title="下一個八拍">8拍 ⏩</button>
+            </div>
+
+            <div class="controls-row">
+                <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">🔁 循環播放: OFF</button>
+                <button class="btn btn-secondary" onclick="jumpToStart()">⏮ 回到開始</button>
+            </div>
+
+            <div class="speed-control">
+                <label>速度：</label>
+                <div class="speed-buttons">
+                    <button class="speed-btn" onclick="setSpeed(0.25)">0.25x</button>
+                    <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+                    <button class="speed-btn" onclick="setSpeed(0.75)">0.75x</button>
+                    <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
+                    <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
+                    <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+                </div>
+            </div>
+
+            <div class="loop-status" id="loopStatus"></div>
+        </div>
+
+        <!-- Keyboard Hints -->
+        <div class="keyboard-hints">
+            <h3>⌨️ 鍵盤快捷鍵</h3>
+            <div class="hint-row"><kbd>Space</kbd> 播放/暫停</div>
+            <div class="hint-row"><kbd>←</kbd> / <kbd>→</kbd> 上/下一拍</div>
+            <div class="hint-row"><kbd>Shift+←</kbd> / <kbd>Shift+→</kbd> 上/下一個八拍</div>
+            <div class="hint-row"><kbd>L</kbd> 開關循環播放</div>
+            <div class="hint-row"><kbd>R</kbd> 回到開始</div>
+            <div class="hint-row"><kbd>-</kbd> / <kbd>+</kbd> 減速/加速</div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let player = null;
+        let beats = [];
+        let currentBeatIndex = -1;
+        let isLooping = false;
+        let currentSpeed = 1;
+        let startTime = 0;
+        let endTime = 16;
+        let updateInterval = null;
+
+        // Extract video ID from URL
+        function extractVideoId(url) {
+            const patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?#]+)/,
+                /^([a-zA-Z0-9_-]{11})$/
+            ];
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        // Load YouTube IFrame API
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+
+        function onYouTubeIframeAPIReady() {
+            const videoId = extractVideoId(document.getElementById('videoUrl').value);
+            player = new YT.Player('player', {
+                videoId: videoId || 'c4iwo6cxQww',
+                playerVars: {
+                    autoplay: 0,
+                    controls: 1,
+                    rel: 0,
+                    modestbranding: 1
+                },
+                events: {
+                    onReady: onPlayerReady,
+                    onStateChange: onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady() {
+            startUpdateLoop();
+        }
+
+        function onPlayerStateChange(event) {
+            const playBtn = document.getElementById('playBtn');
+            if (event.data === YT.PlayerState.PLAYING) {
+                playBtn.textContent = '⏸ 暫停';
+            } else {
+                playBtn.textContent = '▶ 播放';
+            }
+        }
+
+        // Load new video
+        function loadVideo() {
+            const url = document.getElementById('videoUrl').value;
+            const videoId = extractVideoId(url);
+            if (!videoId) {
+                alert('請輸入有效的 YouTube 網址');
+                return;
+            }
+            if (player && player.loadVideoById) {
+                player.loadVideoById(videoId);
+            }
+        }
+
+        // Get current time from player
+        function getCurrentTime() {
+            if (!player || !player.getCurrentTime) return;
+            const time = player.getCurrentTime().toFixed(1);
+            // Smart fill: if start is 0, fill start; otherwise fill end
+            const startInput = document.getElementById('startTime');
+            const endInput = document.getElementById('endTime');
+            if (parseFloat(startInput.value) === 0 && parseFloat(endInput.value) === 16) {
+                startInput.value = time;
+            } else {
+                endInput.value = time;
+            }
+        }
+
+        // Generate beats
+        function generateBeats() {
+            startTime = parseFloat(document.getElementById('startTime').value);
+            endTime = parseFloat(document.getElementById('endTime').value);
+            const unit = parseInt(document.getElementById('beatUnit').value);
+            const count = parseInt(document.getElementById('beatCount').value);
+            const totalBeats = unit * count;
+            const duration = endTime - startTime;
+            const beatInterval = duration / totalBeats;
+
+            beats = [];
+            for (let i = 0; i < totalBeats; i++) {
+                beats.push({
+                    index: i,
+                    time: startTime + i * beatInterval,
+                    beatNumber: (i % 8) + 1,
+                    groupIndex: Math.floor(i / 8)
+                });
+            }
+
+            renderBeats();
+            document.getElementById('beatTimeline').style.display = 'block';
+        }
+
+        // Render beat buttons
+        function renderBeats() {
+            const container = document.getElementById('beatsContainer');
+            container.innerHTML = '';
+
+            const groups = {};
+            beats.forEach(beat => {
+                if (!groups[beat.groupIndex]) groups[beat.groupIndex] = [];
+                groups[beat.groupIndex].push(beat);
+            });
+
+            Object.keys(groups).forEach(groupIdx => {
+                const group = groups[groupIdx];
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'eight-count-group';
+
+                const label = document.createElement('div');
+                label.className = 'eight-count-label';
+                label.textContent = `第 ${parseInt(groupIdx) + 1} 個八拍 (${group[0].time.toFixed(1)}s ~ ${(group[group.length - 1].time + (beats[1]?.time - beats[0]?.time || 0)).toFixed(1)}s)`;
+                groupDiv.appendChild(label);
+
+                const row = document.createElement('div');
+                row.className = 'beats-row';
+
+                group.forEach(beat => {
+                    const btn = document.createElement('button');
+                    btn.className = 'beat-btn';
+                    btn.id = `beat-${beat.index}`;
+                    btn.textContent = beat.beatNumber;
+                    btn.title = `${beat.time.toFixed(1)}s`;
+                    btn.addEventListener('click', () => jumpToBeat(beat.index));
+                    row.appendChild(btn);
+                });
+
+                groupDiv.appendChild(row);
+                container.appendChild(groupDiv);
+            });
+        }
+
+        // Jump to specific beat
+        function jumpToBeat(index) {
+            if (index < 0 || index >= beats.length || !player) return;
+            currentBeatIndex = index;
+            player.seekTo(beats[index].time, true);
+            highlightBeat(index);
+        }
+
+        // Jump by N beats from current position
+        function jumpBeats(n) {
+            if (beats.length === 0) {
+                // No beats defined, jump by seconds
+                if (!player) return;
+                const current = player.getCurrentTime();
+                player.seekTo(Math.max(0, current + n * 0.5), true);
+                return;
+            }
+            const newIndex = Math.max(0, Math.min(beats.length - 1, currentBeatIndex + n));
+            jumpToBeat(newIndex);
+        }
+
+        // Highlight current beat
+        function highlightBeat(index) {
+            document.querySelectorAll('.beat-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById(`beat-${index}`);
+            if (btn) btn.classList.add('active');
+        }
+
+        // Toggle play/pause
+        function togglePlay() {
+            if (!player) return;
+            const state = player.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        // Toggle loop
+        function toggleLoop() {
+            isLooping = !isLooping;
+            const btn = document.getElementById('loopBtn');
+            btn.textContent = `🔁 循環播放: ${isLooping ? 'ON' : 'OFF'}`;
+            btn.classList.toggle('btn-active', isLooping);
+            updateLoopStatus();
+        }
+
+        function updateLoopStatus() {
+            const el = document.getElementById('loopStatus');
+            if (isLooping) {
+                el.innerHTML = `循環區間: <span>${startTime.toFixed(1)}s</span> ~ <span>${endTime.toFixed(1)}s</span>`;
+            } else {
+                el.innerHTML = '';
+            }
+        }
+
+        // Jump to start
+        function jumpToStart() {
+            if (!player) return;
+            player.seekTo(startTime, true);
+            currentBeatIndex = 0;
+            if (beats.length > 0) highlightBeat(0);
+        }
+
+        // Set playback speed
+        function setSpeed(speed) {
+            if (!player) return;
+            currentSpeed = speed;
+            player.setPlaybackRate(speed);
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === `${speed}x`);
+            });
+        }
+
+        // Update loop: progress bar, current beat highlight, loop enforcement
+        function startUpdateLoop() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(() => {
+                if (!player || !player.getCurrentTime) return;
+
+                const current = player.getCurrentTime();
+                const duration = player.getDuration();
+
+                // Update progress bar
+                if (beats.length > 0) {
+                    const progress = ((current - startTime) / (endTime - startTime)) * 100;
+                    document.getElementById('progressBar').style.width = Math.max(0, Math.min(100, progress)) + '%';
+                } else if (duration > 0) {
+                    document.getElementById('progressBar').style.width = (current / duration * 100) + '%';
+                }
+
+                // Update time display
+                const min = Math.floor(current / 60);
+                const sec = (current % 60).toFixed(1);
+                document.getElementById('currentTimeDisplay').textContent = `${min}:${sec.padStart(4, '0')}`;
+
+                // Update current beat highlight
+                if (beats.length > 0) {
+                    let closestIndex = 0;
+                    for (let i = beats.length - 1; i >= 0; i--) {
+                        if (current >= beats[i].time - 0.05) {
+                            closestIndex = i;
+                            break;
+                        }
+                    }
+                    if (closestIndex !== currentBeatIndex) {
+                        currentBeatIndex = closestIndex;
+                        highlightBeat(closestIndex);
+                    }
+                }
+
+                // Loop enforcement
+                if (isLooping && current >= endTime) {
+                    player.seekTo(startTime, true);
+                    currentBeatIndex = 0;
+                    if (beats.length > 0) highlightBeat(0);
+                }
+            }, 100);
+        }
+
+        // Click on progress bar
+        document.getElementById('progressBarContainer').addEventListener('click', function(e) {
+            if (!player) return;
+            const rect = this.getBoundingClientRect();
+            const ratio = (e.clientX - rect.left) / rect.width;
+            if (beats.length > 0) {
+                const time = startTime + ratio * (endTime - startTime);
+                player.seekTo(time, true);
+            } else {
+                const time = ratio * player.getDuration();
+                player.seekTo(time, true);
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ignore when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    jumpBeats(e.shiftKey ? -8 : -1);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    jumpBeats(e.shiftKey ? 8 : 1);
+                    break;
+                case 'l':
+                case 'L':
+                    toggleLoop();
+                    break;
+                case 'r':
+                case 'R':
+                    jumpToStart();
+                    break;
+                case '-':
+                case '_':
+                    setSpeed(Math.max(0.25, currentSpeed - 0.25));
+                    break;
+                case '=':
+                case '+':
+                    setSpeed(Math.min(2, currentSpeed + 0.25));
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
