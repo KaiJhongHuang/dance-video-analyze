@@ -33,6 +33,39 @@
             max-width: 900px;
         }
 
+        /* Draggable sections */
+        .draggable-section {
+            margin-bottom: 20px;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        .draggable-section.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+
+        .draggable-section.drag-over {
+            border-top: 3px solid #e94560;
+        }
+
+        .drag-handle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .drag-icon {
+            font-size: 0.9rem;
+            color: #555;
+            letter-spacing: 2px;
+        }
+
         /* Video Section */
         .video-wrapper {
             position: relative;
@@ -41,7 +74,6 @@
             background: #000;
             border-radius: 12px;
             overflow: hidden;
-            margin-bottom: 20px;
         }
 
         .video-wrapper iframe {
@@ -52,15 +84,14 @@
             height: 100%;
         }
 
-        /* Settings Panel */
-        .settings-panel {
+        /* Panels */
+        .panel {
             background: #16213e;
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px;
         }
 
-        .settings-panel h2 {
+        .panel h2 {
             font-size: 1.1rem;
             margin-bottom: 15px;
             color: #e94560;
@@ -82,6 +113,9 @@
         .field label {
             font-size: 0.85rem;
             color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .field input, .field select {
@@ -97,6 +131,54 @@
         .field input:focus, .field select:focus {
             outline: none;
             border-color: #e94560;
+        }
+
+        /* Info tooltip */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #0f3460;
+            color: #888;
+            font-size: 0.65rem;
+            cursor: help;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .info-icon .tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0a1628;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 100;
+            line-height: 1.5;
+            font-weight: normal;
+        }
+
+        .info-icon .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #333;
+        }
+
+        .info-icon:hover .tooltip {
+            display: block;
         }
 
         .btn {
@@ -149,19 +231,6 @@
         }
 
         /* Beat Timeline */
-        .beat-timeline {
-            background: #16213e;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .beat-timeline h2 {
-            font-size: 1.1rem;
-            margin-bottom: 15px;
-            color: #e94560;
-        }
-
         .eight-count-group {
             margin-bottom: 12px;
         }
@@ -233,19 +302,7 @@
             color: #fff;
         }
 
-        .beat-btn .beat-time {
-            font-size: 0.6rem;
-            color: #aaa;
-        }
-
         /* Controls */
-        .controls {
-            background: #16213e;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
         .controls-row {
             display: flex;
             justify-content: center;
@@ -378,6 +435,11 @@
                 height: 36px;
                 font-size: 0.8rem;
             }
+
+            .info-icon .tooltip {
+                white-space: normal;
+                width: 200px;
+            }
         }
     </style>
 </head>
@@ -386,92 +448,113 @@
         <h1>🩰 舞蹈練習播放器</h1>
 
         <!-- Video -->
-        <div class="video-wrapper">
-            <div id="player"></div>
+        <div class="draggable-section" draggable="true" data-section="video">
+            <div class="video-wrapper">
+                <div id="player"></div>
+            </div>
+        </div>
+
+        <!-- Controls (default: before settings) -->
+        <div class="draggable-section" draggable="true" data-section="controls">
+            <div class="panel">
+                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎛️ 播放控制</span></h2>
+                <div class="progress-bar-container" id="progressBarContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="current-time" id="currentTimeDisplay">0:00.0</div>
+
+                <div class="controls-row">
+                    <button class="btn btn-secondary" onclick="jumpBeats(-8)" title="上一個八拍">⏪ 8拍</button>
+                    <button class="btn btn-secondary" onclick="jumpBeats(-1)" title="上一拍">◀ 1拍</button>
+                    <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
+                    <button class="btn btn-secondary" onclick="jumpBeats(1)" title="下一拍">1拍 ▶</button>
+                    <button class="btn btn-secondary" onclick="jumpBeats(8)" title="下一個八拍">8拍 ⏩</button>
+                </div>
+
+                <div class="controls-row">
+                    <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">🔁 循環播放: OFF</button>
+                    <button class="btn btn-secondary" onclick="jumpToStart()">⏮ 回到開始</button>
+                </div>
+
+                <div class="speed-control">
+                    <label>速度：</label>
+                    <div class="speed-buttons">
+                        <button class="speed-btn" onclick="setSpeed(0.25)">0.25x</button>
+                        <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+                        <button class="speed-btn" onclick="setSpeed(0.75)">0.75x</button>
+                        <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
+                        <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
+                        <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+                    </div>
+                </div>
+
+                <div class="loop-status" id="loopStatus"></div>
+            </div>
         </div>
 
         <!-- Settings -->
-        <div class="settings-panel">
-            <h2>⚙️ 設定</h2>
-            <div class="url-row">
-                <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=GvHOEJPabuk">
-                <button class="btn btn-primary" onclick="loadVideo()">載入影片</button>
-            </div>
-            <div class="settings-row">
-                <div class="field">
-                    <label>開始秒數</label>
-                    <input type="number" id="startTime" value="4.6" step="0.1" min="0">
+        <div class="draggable-section" draggable="true" data-section="settings">
+            <div class="panel">
+                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> ⚙️ 設定</span></h2>
+                <div class="url-row">
+                    <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=GvHOEJPabuk">
+                    <button class="btn btn-primary" onclick="loadVideo()">載入影片</button>
                 </div>
-                <div class="field">
-                    <label>結束秒數</label>
-                    <input type="number" id="endTime" value="16.0" step="0.1" min="0">
+                <div class="settings-row">
+                    <div class="field">
+                        <label>
+                            開始秒數
+                            <span class="info-icon">?
+                                <span class="tooltip">按在第 1 個八拍的第 1 拍的瞬間</span>
+                            </span>
+                        </label>
+                        <input type="number" id="startTime" value="4.6" step="0.1" min="0">
+                    </div>
+                    <div class="field">
+                        <label>
+                            結束秒數
+                            <span class="info-icon">?
+                                <span class="tooltip">按在最後一個八拍結束後，<br>假想的「下一拍」的瞬間<br>（例如 3 組八拍，按在第 4 組的第 1 拍位置）</span>
+                            </span>
+                        </label>
+                        <input type="number" id="endTime" value="16.0" step="0.1" min="0">
+                    </div>
+                    <div class="field">
+                        <label>數量</label>
+                        <input type="number" id="beatCount" value="3" step="1" min="1">
+                    </div>
+                    <div class="field">
+                        <label>拍數單位</label>
+                        <select id="beatUnit">
+                            <option value="8">八拍 (組)</option>
+                            <option value="1">拍 (單拍)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateBeats()">產生拍子</button>
+                    <button class="btn btn-secondary" onclick="getCurrentTime()">取得目前秒數</button>
                 </div>
-                <div class="field">
-                    <label>數量</label>
-                    <input type="number" id="beatCount" value="3" step="1" min="1">
-                </div>
-                <div class="field">
-                    <label>拍數單位</label>
-                    <select id="beatUnit">
-                        <option value="8">八拍 (組)</option>
-                        <option value="1">拍 (單拍)</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" onclick="generateBeats()">產生拍子</button>
-                <button class="btn btn-secondary" onclick="getCurrentTime()">取得目前秒數</button>
             </div>
         </div>
 
         <!-- Beat Timeline -->
-        <div class="beat-timeline" id="beatTimeline" style="display:none;">
-            <h2>🎵 拍子時間軸</h2>
-            <div id="beatsContainer"></div>
-        </div>
-
-        <!-- Controls -->
-        <div class="controls">
-            <div class="progress-bar-container" id="progressBarContainer">
-                <div class="progress-bar" id="progressBar"></div>
+        <div class="draggable-section" draggable="true" data-section="beats" id="beatTimeline" style="display:none;">
+            <div class="panel">
+                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎵 拍子時間軸</span></h2>
+                <div id="beatsContainer"></div>
             </div>
-            <div class="current-time" id="currentTimeDisplay">0:00.0</div>
-
-            <div class="controls-row">
-                <button class="btn btn-secondary" onclick="jumpBeats(-8)" title="上一個八拍">⏪ 8拍</button>
-                <button class="btn btn-secondary" onclick="jumpBeats(-1)" title="上一拍">◀ 1拍</button>
-                <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
-                <button class="btn btn-secondary" onclick="jumpBeats(1)" title="下一拍">1拍 ▶</button>
-                <button class="btn btn-secondary" onclick="jumpBeats(8)" title="下一個八拍">8拍 ⏩</button>
-            </div>
-
-            <div class="controls-row">
-                <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">🔁 循環播放: OFF</button>
-                <button class="btn btn-secondary" onclick="jumpToStart()">⏮ 回到開始</button>
-            </div>
-
-            <div class="speed-control">
-                <label>速度：</label>
-                <div class="speed-buttons">
-                    <button class="speed-btn" onclick="setSpeed(0.25)">0.25x</button>
-                    <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
-                    <button class="speed-btn" onclick="setSpeed(0.75)">0.75x</button>
-                    <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
-                    <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
-                    <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
-                </div>
-            </div>
-
-            <div class="loop-status" id="loopStatus"></div>
         </div>
 
         <!-- Config Export/Import -->
-        <div class="settings-panel">
-            <h2>💾 匯出 / 匯入設定</h2>
-            <p style="font-size:0.8rem; color:#888; margin-bottom:10px;">複製下方文字保存，下次貼回即可還原設定</p>
-            <div style="display:flex; gap:10px;">
-                <textarea id="configText" rows="3" style="flex:1; background:#0f3460; border:1px solid #333; color:#eee; padding:10px; border-radius:8px; font-size:0.85rem; font-family:monospace; resize:vertical;" placeholder="點擊「匯出」產生設定字串，或貼上之前的設定後按「匯入」"></textarea>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <button class="btn btn-primary" onclick="exportConfig()">匯出</button>
-                    <button class="btn btn-secondary" onclick="importConfig()">匯入</button>
+        <div class="draggable-section" draggable="true" data-section="config">
+            <div class="panel">
+                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 💾 匯出 / 匯入設定</span></h2>
+                <p style="font-size:0.8rem; color:#888; margin-bottom:10px;">複製下方文字保存，下次貼回即可還原設定</p>
+                <div style="display:flex; gap:10px;">
+                    <textarea id="configText" rows="4" style="flex:1; background:#0f3460; border:1px solid #333; color:#eee; padding:10px; border-radius:8px; font-size:0.85rem; font-family:monospace; resize:vertical;" placeholder="點擊「匯出」產生設定字串，或貼上之前的設定後按「匯入」"></textarea>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <button class="btn btn-primary" onclick="exportConfig()">匯出</button>
+                        <button class="btn btn-secondary" onclick="importConfig()">匯入</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -499,7 +582,59 @@
         let endTime = 16.0;
         let updateInterval = null;
 
-        // Extract video ID from URL
+        // ==================== Drag & Drop for sections ====================
+        (function initDragDrop() {
+            const container = document.querySelector('.container');
+            let draggedEl = null;
+
+            container.addEventListener('dragstart', function(e) {
+                const section = e.target.closest('.draggable-section');
+                if (!section) return;
+                draggedEl = section;
+                section.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            container.addEventListener('dragend', function(e) {
+                const section = e.target.closest('.draggable-section');
+                if (section) section.classList.remove('dragging');
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                draggedEl = null;
+            });
+
+            container.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const section = e.target.closest('.draggable-section');
+                if (!section || section === draggedEl) return;
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                section.classList.add('drag-over');
+            });
+
+            container.addEventListener('dragleave', function(e) {
+                const section = e.target.closest('.draggable-section');
+                if (section) section.classList.remove('drag-over');
+            });
+
+            container.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const target = e.target.closest('.draggable-section');
+                if (!target || !draggedEl || target === draggedEl) return;
+                target.classList.remove('drag-over');
+
+                const sections = [...container.querySelectorAll('.draggable-section')];
+                const dragIdx = sections.indexOf(draggedEl);
+                const dropIdx = sections.indexOf(target);
+
+                if (dragIdx < dropIdx) {
+                    target.after(draggedEl);
+                } else {
+                    target.before(draggedEl);
+                }
+            });
+        })();
+
+        // ==================== YouTube Player ====================
         function extractVideoId(url) {
             const patterns = [
                 /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?#]+)/,
@@ -512,7 +647,6 @@
             return null;
         }
 
-        // Load YouTube IFrame API
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
         document.head.appendChild(tag);
@@ -547,7 +681,6 @@
             }
         }
 
-        // Load new video
         function loadVideo() {
             const url = document.getElementById('videoUrl').value;
             const videoId = extractVideoId(url);
@@ -560,11 +693,10 @@
             }
         }
 
-        // Get current time from player
+        // ==================== Time helpers ====================
         function getCurrentTime() {
             if (!player || !player.getCurrentTime) return;
             const time = player.getCurrentTime().toFixed(1);
-            // Smart fill: if start is 0, fill start; otherwise fill end
             const startInput = document.getElementById('startTime');
             const endInput = document.getElementById('endTime');
             if (parseFloat(startInput.value) === 0 && parseFloat(endInput.value) === 16) {
@@ -574,7 +706,7 @@
             }
         }
 
-        // Generate beats
+        // ==================== Beat generation ====================
         function generateBeats() {
             startTime = parseFloat(document.getElementById('startTime').value);
             endTime = parseFloat(document.getElementById('endTime').value);
@@ -598,7 +730,6 @@
             document.getElementById('beatTimeline').style.display = 'block';
         }
 
-        // Render beat buttons
         function renderBeats() {
             const container = document.getElementById('beatsContainer');
             container.innerHTML = '';
@@ -652,7 +783,7 @@
             });
         }
 
-        // Jump to specific beat
+        // ==================== Navigation ====================
         function jumpToBeat(index) {
             if (index < 0 || index >= beats.length || !player) return;
             currentBeatIndex = index;
@@ -660,10 +791,8 @@
             highlightBeat(index);
         }
 
-        // Jump by N beats from current position
         function jumpBeats(n) {
             if (beats.length === 0) {
-                // No beats defined, jump by seconds
                 if (!player) return;
                 const current = player.getCurrentTime();
                 player.seekTo(Math.max(0, current + n * 0.5), true);
@@ -673,14 +802,12 @@
             jumpToBeat(newIndex);
         }
 
-        // Highlight current beat
         function highlightBeat(index) {
             document.querySelectorAll('.beat-btn').forEach(btn => btn.classList.remove('active'));
             const btn = document.getElementById(`beat-${index}`);
             if (btn) btn.classList.add('active');
         }
 
-        // Toggle play/pause
         function togglePlay() {
             if (!player) return;
             const state = player.getPlayerState();
@@ -691,7 +818,6 @@
             }
         }
 
-        // Toggle loop
         function toggleLoop() {
             isLooping = !isLooping;
             const btn = document.getElementById('loopBtn');
@@ -709,7 +835,6 @@
             }
         }
 
-        // Jump to start
         function jumpToStart() {
             if (!player) return;
             player.seekTo(startTime, true);
@@ -717,7 +842,6 @@
             if (beats.length > 0) highlightBeat(0);
         }
 
-        // Set playback speed
         function setSpeed(speed) {
             if (!player) return;
             currentSpeed = speed;
@@ -727,7 +851,7 @@
             });
         }
 
-        // Update loop: progress bar, current beat highlight, loop enforcement
+        // ==================== Update loop ====================
         function startUpdateLoop() {
             if (updateInterval) clearInterval(updateInterval);
             updateInterval = setInterval(() => {
@@ -736,7 +860,6 @@
                 const current = player.getCurrentTime();
                 const duration = player.getDuration();
 
-                // Update progress bar
                 if (beats.length > 0) {
                     const progress = ((current - startTime) / (endTime - startTime)) * 100;
                     document.getElementById('progressBar').style.width = Math.max(0, Math.min(100, progress)) + '%';
@@ -744,12 +867,10 @@
                     document.getElementById('progressBar').style.width = (current / duration * 100) + '%';
                 }
 
-                // Update time display
                 const min = Math.floor(current / 60);
                 const sec = (current % 60).toFixed(1);
                 document.getElementById('currentTimeDisplay').textContent = `${min}:${sec.padStart(4, '0')}`;
 
-                // Update current beat highlight
                 if (beats.length > 0) {
                     let closestIndex = 0;
                     for (let i = beats.length - 1; i >= 0; i--) {
@@ -764,7 +885,6 @@
                     }
                 }
 
-                // Loop enforcement
                 if (isLooping && current >= endTime) {
                     player.seekTo(startTime, true);
                     currentBeatIndex = 0;
@@ -773,7 +893,6 @@
             }, 100);
         }
 
-        // Click on progress bar
         document.getElementById('progressBarContainer').addEventListener('click', function(e) {
             if (!player) return;
             const rect = this.getBoundingClientRect();
@@ -787,31 +906,54 @@
             }
         });
 
-        // Config export/import
+        // ==================== Config export/import (human-readable) ====================
         function exportConfig() {
-            const config = {
-                url: document.getElementById('videoUrl').value,
-                start: parseFloat(document.getElementById('startTime').value),
-                end: parseFloat(document.getElementById('endTime').value),
-                count: parseInt(document.getElementById('beatCount').value),
-                unit: parseInt(document.getElementById('beatUnit').value),
-                speed: currentSpeed
-            };
-            const str = btoa(encodeURIComponent(JSON.stringify(config)));
-            document.getElementById('configText').value = str;
-            // Auto select for easy copy
+            const url = document.getElementById('videoUrl').value;
+            const start = parseFloat(document.getElementById('startTime').value);
+            const end = parseFloat(document.getElementById('endTime').value);
+            const count = parseInt(document.getElementById('beatCount').value);
+            const unit = parseInt(document.getElementById('beatUnit').value);
+            const unitLabel = unit === 8 ? '八拍' : '拍';
+
+            const lines = [
+                `影片: ${url}`,
+                `開始: ${start}s`,
+                `結束: ${end}s`,
+                `拍數: ${count} 組${unitLabel}`,
+                `速度: ${currentSpeed}x`
+            ];
+            document.getElementById('configText').value = lines.join('\n');
             document.getElementById('configText').select();
         }
 
         function importConfig() {
             try {
-                const str = document.getElementById('configText').value.trim();
-                const config = JSON.parse(decodeURIComponent(atob(str)));
-                document.getElementById('videoUrl').value = config.url;
-                document.getElementById('startTime').value = config.start;
-                document.getElementById('endTime').value = config.end;
-                document.getElementById('beatCount').value = config.count;
-                document.getElementById('beatUnit').value = config.unit;
+                const text = document.getElementById('configText').value.trim();
+                const lines = text.split('\n');
+                const config = {};
+
+                for (const line of lines) {
+                    const [key, ...rest] = line.split(':');
+                    const value = rest.join(':').trim();
+                    const k = key.trim();
+                    if (k === '影片') config.url = value;
+                    else if (k === '開始') config.start = parseFloat(value);
+                    else if (k === '結束') config.end = parseFloat(value);
+                    else if (k === '拍數') {
+                        const match = value.match(/^(\d+)\s*組(八拍|拍)/);
+                        if (match) {
+                            config.count = parseInt(match[1]);
+                            config.unit = match[2] === '八拍' ? 8 : 1;
+                        }
+                    }
+                    else if (k === '速度') config.speed = parseFloat(value);
+                }
+
+                if (config.url) document.getElementById('videoUrl').value = config.url;
+                if (config.start != null) document.getElementById('startTime').value = config.start;
+                if (config.end != null) document.getElementById('endTime').value = config.end;
+                if (config.count != null) document.getElementById('beatCount').value = config.count;
+                if (config.unit != null) document.getElementById('beatUnit').value = config.unit;
                 if (config.speed) setSpeed(config.speed);
                 loadVideo();
                 generateBeats();
@@ -820,10 +962,9 @@
             }
         }
 
-        // Keyboard shortcuts
+        // ==================== Keyboard shortcuts ====================
         document.addEventListener('keydown', function(e) {
-            // Ignore when typing in inputs
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
             switch (e.key) {
                 case ' ':
