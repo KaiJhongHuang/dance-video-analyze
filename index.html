@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>舞蹈練習播放器</title>
     <style>
         * {
@@ -286,7 +289,6 @@
             background: linear-gradient(90deg, #e94560, #c73e54);
             border-radius: 6px 0 0 6px;
             pointer-events: none;
-            transition: width 0.08s linear;
         }
 
         .beat-slider-thumb {
@@ -299,7 +301,6 @@
             pointer-events: none;
             transform: translateX(-2px);
             box-shadow: 0 0 6px rgba(233,69,96,0.6);
-            transition: left 0.08s linear;
         }
 
         .beat-tick {
@@ -769,6 +770,7 @@
 
             renderBeats();
             document.getElementById('beatTimeline').style.display = 'block';
+            buildSliderGroups();
         }
 
         function renderBeats() {
@@ -910,43 +912,52 @@
         }
 
         function highlightBeat(index) {
-            // Update tick labels
             document.querySelectorAll('.beat-tick-label').forEach(el => el.classList.remove('active'));
             const tickLabel = document.getElementById(`tick-label-${index}`);
             if (tickLabel) tickLabel.classList.add('active');
+        }
 
-            // Update slider fills and thumbs
+        // Cached group info for slider updates (rebuilt on generateBeats)
+        let sliderGroups = [];
+
+        function buildSliderGroups() {
+            sliderGroups = [];
             if (beats.length === 0) return;
-            const beat = beats[index];
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
-            const currentTime = player ? player.getCurrentTime() : beat.time;
-
             const groups = {};
             beats.forEach(b => {
                 if (!groups[b.groupIndex]) groups[b.groupIndex] = [];
                 groups[b.groupIndex].push(b);
             });
-
             Object.keys(groups).forEach(gIdx => {
                 const group = groups[gIdx];
                 const gStart = group[0].time;
                 const gEnd = group[group.length - 1].time + beatInterval;
-                const gDuration = gEnd - gStart;
-                const fill = document.getElementById(`slider-fill-${gIdx}`);
-                const thumb = document.getElementById(`slider-thumb-${gIdx}`);
-
-                if (parseInt(gIdx) === beat.groupIndex) {
-                    const pct = Math.max(0, Math.min(100, ((currentTime - gStart) / gDuration) * 100));
-                    if (fill) fill.style.width = pct + '%';
-                    if (thumb) { thumb.style.left = pct + '%'; thumb.style.display = 'block'; }
-                } else if (parseInt(gIdx) < beat.groupIndex) {
-                    if (fill) fill.style.width = '100%';
-                    if (thumb) thumb.style.display = 'none';
-                } else {
-                    if (fill) fill.style.width = '0%';
-                    if (thumb) thumb.style.display = 'none';
-                }
+                sliderGroups.push({
+                    idx: parseInt(gIdx),
+                    start: gStart,
+                    end: gEnd,
+                    duration: gEnd - gStart,
+                    fill: document.getElementById(`slider-fill-${gIdx}`),
+                    thumb: document.getElementById(`slider-thumb-${gIdx}`)
+                });
             });
+        }
+
+        function updateSliderPositions(currentTime) {
+            for (const g of sliderGroups) {
+                if (currentTime >= g.start && currentTime < g.end) {
+                    const pct = ((currentTime - g.start) / g.duration) * 100;
+                    if (g.fill) g.fill.style.width = pct + '%';
+                    if (g.thumb) { g.thumb.style.left = pct + '%'; g.thumb.style.display = 'block'; }
+                } else if (currentTime >= g.end) {
+                    if (g.fill) g.fill.style.width = '100%';
+                    if (g.thumb) g.thumb.style.display = 'none';
+                } else {
+                    if (g.fill) g.fill.style.width = '0%';
+                    if (g.thumb) g.thumb.style.display = 'none';
+                }
+            }
         }
 
         function togglePlay() {
@@ -1013,6 +1024,8 @@
                 document.getElementById('currentTimeDisplay').textContent = `${min}:${sec.padStart(4, '0')}`;
 
                 if (beats.length > 0) {
+                    updateSliderPositions(current);
+
                     let closestIndex = 0;
                     for (let i = beats.length - 1; i >= 0; i--) {
                         if (current >= beats[i].time - 0.05) {
@@ -1031,7 +1044,7 @@
                     currentBeatIndex = 0;
                     if (beats.length > 0) highlightBeat(0);
                 }
-            }, 100);
+            }, 50);
         }
 
         document.getElementById('progressBarContainer').addEventListener('click', function(e) {
