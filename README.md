@@ -1,5 +1,7 @@
 # 舞蹈練習播放器
 
+> **線上使用：** https://kaijhonghuang.github.io/dance-video-analyze/
+
 一個基於 YouTube 的舞蹈練習工具，幫助舞者精準跳轉到音樂中的特定拍子。
 
 ## 功能
