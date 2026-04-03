@@ -166,10 +166,37 @@
             margin-bottom: 12px;
         }
 
+        .eight-count-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 5px;
+        }
+
+        .eight-count-header:hover .eight-count-label {
+            color: #bbb;
+        }
+
+        .eight-count-toggle {
+            font-size: 0.75rem;
+            color: #888;
+            transition: transform 0.2s;
+        }
+
+        .eight-count-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
         .eight-count-label {
             font-size: 0.8rem;
             color: #888;
-            margin-bottom: 5px;
+            transition: color 0.15s;
+        }
+
+        .beats-row.collapsed {
+            display: none;
         }
 
         .beats-row {
@@ -367,17 +394,21 @@
         <div class="settings-panel">
             <h2>⚙️ 設定</h2>
             <div class="url-row">
-                <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=c4iwo6cxQww">
+                <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=GvHOEJPabuk">
                 <button class="btn btn-primary" onclick="loadVideo()">載入影片</button>
             </div>
             <div class="settings-row">
                 <div class="field">
                     <label>開始秒數</label>
-                    <input type="number" id="startTime" value="0" step="0.1" min="0">
+                    <input type="number" id="startTime" value="4.6" step="0.1" min="0">
                 </div>
                 <div class="field">
                     <label>結束秒數</label>
-                    <input type="number" id="endTime" value="16" step="0.1" min="0">
+                    <input type="number" id="endTime" value="16.0" step="0.1" min="0">
+                </div>
+                <div class="field">
+                    <label>數量</label>
+                    <input type="number" id="beatCount" value="3" step="1" min="1">
                 </div>
                 <div class="field">
                     <label>拍數單位</label>
@@ -385,10 +416,6 @@
                         <option value="8">八拍 (組)</option>
                         <option value="1">拍 (單拍)</option>
                     </select>
-                </div>
-                <div class="field">
-                    <label>數量</label>
-                    <input type="number" id="beatCount" value="4" step="1" min="1">
                 </div>
                 <button class="btn btn-primary" onclick="generateBeats()">產生拍子</button>
                 <button class="btn btn-secondary" onclick="getCurrentTime()">取得目前秒數</button>
@@ -436,6 +463,19 @@
             <div class="loop-status" id="loopStatus"></div>
         </div>
 
+        <!-- Config Export/Import -->
+        <div class="settings-panel">
+            <h2>💾 匯出 / 匯入設定</h2>
+            <p style="font-size:0.8rem; color:#888; margin-bottom:10px;">複製下方文字保存，下次貼回即可還原設定</p>
+            <div style="display:flex; gap:10px;">
+                <textarea id="configText" rows="3" style="flex:1; background:#0f3460; border:1px solid #333; color:#eee; padding:10px; border-radius:8px; font-size:0.85rem; font-family:monospace; resize:vertical;" placeholder="點擊「匯出」產生設定字串，或貼上之前的設定後按「匯入」"></textarea>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button class="btn btn-primary" onclick="exportConfig()">匯出</button>
+                    <button class="btn btn-secondary" onclick="importConfig()">匯入</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Keyboard Hints -->
         <div class="keyboard-hints">
             <h3>⌨️ 鍵盤快捷鍵</h3>
@@ -455,8 +495,8 @@
         let currentBeatIndex = -1;
         let isLooping = false;
         let currentSpeed = 1;
-        let startTime = 0;
-        let endTime = 16;
+        let startTime = 4.6;
+        let endTime = 16.0;
         let updateInterval = null;
 
         // Extract video ID from URL
@@ -480,7 +520,7 @@
         function onYouTubeIframeAPIReady() {
             const videoId = extractVideoId(document.getElementById('videoUrl').value);
             player = new YT.Player('player', {
-                videoId: videoId || 'c4iwo6cxQww',
+                videoId: videoId || 'GvHOEJPabuk',
                 playerVars: {
                     autoplay: 0,
                     controls: 1,
@@ -574,13 +614,28 @@
                 const groupDiv = document.createElement('div');
                 groupDiv.className = 'eight-count-group';
 
-                const label = document.createElement('div');
+                const header = document.createElement('div');
+                header.className = 'eight-count-header';
+
+                const toggle = document.createElement('span');
+                toggle.className = 'eight-count-toggle';
+                toggle.textContent = '▼';
+
+                const label = document.createElement('span');
                 label.className = 'eight-count-label';
                 label.textContent = `第 ${parseInt(groupIdx) + 1} 個八拍 (${group[0].time.toFixed(1)}s ~ ${(group[group.length - 1].time + (beats[1]?.time - beats[0]?.time || 0)).toFixed(1)}s)`;
-                groupDiv.appendChild(label);
+
+                header.appendChild(toggle);
+                header.appendChild(label);
+                groupDiv.appendChild(header);
 
                 const row = document.createElement('div');
                 row.className = 'beats-row';
+
+                header.addEventListener('click', () => {
+                    row.classList.toggle('collapsed');
+                    toggle.classList.toggle('collapsed');
+                });
 
                 group.forEach(beat => {
                     const btn = document.createElement('button');
@@ -731,6 +786,39 @@
                 player.seekTo(time, true);
             }
         });
+
+        // Config export/import
+        function exportConfig() {
+            const config = {
+                url: document.getElementById('videoUrl').value,
+                start: parseFloat(document.getElementById('startTime').value),
+                end: parseFloat(document.getElementById('endTime').value),
+                count: parseInt(document.getElementById('beatCount').value),
+                unit: parseInt(document.getElementById('beatUnit').value),
+                speed: currentSpeed
+            };
+            const str = btoa(encodeURIComponent(JSON.stringify(config)));
+            document.getElementById('configText').value = str;
+            // Auto select for easy copy
+            document.getElementById('configText').select();
+        }
+
+        function importConfig() {
+            try {
+                const str = document.getElementById('configText').value.trim();
+                const config = JSON.parse(decodeURIComponent(atob(str)));
+                document.getElementById('videoUrl').value = config.url;
+                document.getElementById('startTime').value = config.start;
+                document.getElementById('endTime').value = config.end;
+                document.getElementById('beatCount').value = config.count;
+                document.getElementById('beatUnit').value = config.unit;
+                if (config.speed) setSpeed(config.speed);
+                loadVideo();
+                generateBeats();
+            } catch (e) {
+                alert('設定格式錯誤，請確認貼上的內容是否正確');
+            }
+        }
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
