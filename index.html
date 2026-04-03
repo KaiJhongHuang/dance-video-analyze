@@ -642,6 +642,7 @@
             </h2>
             <div class="controls-row" style="justify-content:flex-start; margin-bottom:0;">
                 <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
+                <button class="btn btn-secondary" id="metronomeBtn" onclick="toggleMetronome()">🥁 節拍器: OFF</button>
             </div>
         </div>
 
@@ -1176,6 +1177,7 @@
                     if (closestIndex !== currentBeatIndex) {
                         currentBeatIndex = closestIndex;
                         highlightBeat(closestIndex);
+                        checkMetronome();
                     }
                 }
 
@@ -1263,6 +1265,43 @@
             document.querySelector('.video-wrapper').classList.toggle('mirrored', isMirrored);
             document.getElementById('mirrorBtn').textContent = `🪞 鏡像: ${isMirrored ? 'ON' : 'OFF'}`;
             document.getElementById('mirrorBtn').classList.toggle('btn-active', isMirrored);
+        }
+
+        // ==================== Beta: Metronome ====================
+        let isMetronomeOn = false;
+        let audioCtx = null;
+        let lastMetronomeBeat = -1;
+
+        function toggleMetronome() {
+            isMetronomeOn = !isMetronomeOn;
+            document.getElementById('metronomeBtn').textContent = `🥁 節拍器: ${isMetronomeOn ? 'ON' : 'OFF'}`;
+            document.getElementById('metronomeBtn').classList.toggle('btn-active', isMetronomeOn);
+            if (isMetronomeOn && !audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            lastMetronomeBeat = -1;
+        }
+
+        function playClick(isDownbeat) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = isDownbeat ? 1000 : 700;
+            gain.gain.value = isDownbeat ? 0.3 : 0.15;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.08);
+        }
+
+        function checkMetronome() {
+            if (!isMetronomeOn || beats.length === 0) return;
+            if (currentBeatIndex !== lastMetronomeBeat && currentBeatIndex >= 0) {
+                lastMetronomeBeat = currentBeatIndex;
+                const isDownbeat = beats[currentBeatIndex].beatNumber === 1;
+                playClick(isDownbeat);
+            }
         }
 
         // ==================== Keyboard shortcuts ====================
