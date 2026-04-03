@@ -771,30 +771,26 @@
             document.querySelector('.container').style.display = 'none';
 
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'max-width:1200px; margin:0 auto; padding:20px;';
+            wrapper.style.cssText = 'width:100%; margin:0; padding:0;';
             wrapper.innerHTML = `
-                <h1 style="font-size:1.3rem; color:#e94560; margin-bottom:15px; text-align:center;">📸 第 ${parseInt(groupIdx) + 1} 個八拍預覽</h1>
-                <div id="previewGrid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;"></div>
+                <div id="previewGrid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:2px; width:100%; height:100vh;"></div>
             `;
             document.body.appendChild(wrapper);
+            document.body.style.margin = '0';
+            document.body.style.padding = '0';
+            document.body.style.overflow = 'hidden';
 
             // Add responsive style
             const style = document.createElement('style');
-            style.textContent = '@media(max-width:700px){#previewGrid{grid-template-columns:repeat(2,1fr)!important;}}';
+            style.textContent = '@media(max-width:700px){#previewGrid{grid-template-columns:repeat(2,1fr)!important;grid-template-rows:repeat(4,1fr)!important;}}';
             document.head.appendChild(style);
 
             const grid = document.getElementById('previewGrid');
             previewBeats.forEach((beat, i) => {
                 const cell = document.createElement('div');
-                cell.style.cssText = 'background:#16213e; border-radius:8px; overflow:hidden;';
+                cell.style.cssText = 'overflow:hidden; position:relative;';
                 cell.innerHTML = `
-                    <div style="padding:6px 10px; font-size:0.8rem; color:#aaa; display:flex; justify-content:space-between;">
-                        <span style="font-size:1.1rem; font-weight:bold; color:#e94560;">${beat.num}</span>
-                        <span>${beat.time.toFixed(1)}s</span>
-                    </div>
-                    <div style="position:relative; width:100%; padding-bottom:56.25%;">
-                        <div id="pp${i}" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
-                    </div>
+                    <div id="pp${i}" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
                 `;
                 grid.appendChild(cell);
             });
@@ -809,7 +805,7 @@
                     let seeked = false;
                     new YT.Player('pp' + i, {
                         videoId: videoId,
-                        playerVars: { autoplay: 1, controls: 1, modestbranding: 1, rel: 0, mute: 1 },
+                        playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, mute: 1, showinfo: 0, iv_load_policy: 3 },
                         events: {
                             onReady: function(e) {
                                 e.target.seekTo(beat.time, true);
