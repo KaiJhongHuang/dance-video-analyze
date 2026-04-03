@@ -541,10 +541,21 @@
             .settings-row {
                 flex-direction: column;
                 gap: 10px;
+                align-items: stretch;
             }
 
-            .field input {
+            .settings-row .field {
                 width: 100%;
+            }
+
+            .settings-row .field input,
+            .settings-row .field select {
+                width: 100%;
+            }
+
+            .settings-row .btn {
+                width: 100%;
+                text-align: center;
             }
 
             .btn {
@@ -552,13 +563,23 @@
                 font-size: 0.85rem;
             }
 
+            .controls-row {
+                gap: 8px;
+            }
+
             .controls-row .btn {
-                font-size: 0.95rem;
-                padding: 8px 14px;
+                font-size: 0.85rem;
+                padding: 8px 12px;
+            }
+
+            .speed-control {
+                flex-direction: column;
+                gap: 6px;
             }
 
             .speed-buttons {
                 flex-wrap: wrap;
+                justify-content: center;
             }
 
             .speed-btn {
@@ -785,13 +806,19 @@
 
             window.onYouTubeIframeAPIReady = function() {
                 previewBeats.forEach((beat, i) => {
+                    let seeked = false;
                     new YT.Player('pp' + i, {
                         videoId: videoId,
-                        playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0 },
+                        playerVars: { autoplay: 1, controls: 1, modestbranding: 1, rel: 0, mute: 1 },
                         events: {
                             onReady: function(e) {
                                 e.target.seekTo(beat.time, true);
-                                e.target.pauseVideo();
+                            },
+                            onStateChange: function(e) {
+                                if (e.data === YT.PlayerState.PLAYING && !seeked) {
+                                    seeked = true;
+                                    e.target.pauseVideo();
+                                }
                             }
                         }
                     });
