@@ -69,7 +69,8 @@
             letter-spacing: 2px;
         }
 
-        .video-wrapper.mirrored iframe {
+        .video-wrapper.mirrored iframe,
+        .video-wrapper.mirrored video {
             transform: scaleX(-1);
         }
 
@@ -617,8 +618,9 @@
 
         <!-- Video -->
         <div class="draggable-section" data-section="video">
-            <div class="video-wrapper">
-                <div id="player"></div>
+            <div class="video-wrapper" id="videoWrapper">
+                <div id="ytPlayer"></div>
+                <video id="localPlayer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000;" playsinline></video>
             </div>
         </div>
 
@@ -668,6 +670,13 @@
                 <div class="url-row">
                     <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=GvHOEJPabuk">
                     <button class="btn btn-primary" onclick="loadVideo()">載入影片</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                    <label class="btn btn-secondary" style="cursor:pointer; margin:0;">
+                        📁 選擇本機影片
+                        <input type="file" id="localFileInput" accept="video/*" style="display:none;" onchange="loadLocalVideo(this)">
+                    </label>
+                    <span id="localFileName" style="font-size:0.8rem; color:#888;"></span>
                 </div>
                 <div class="settings-row">
                     <div class="field">
@@ -981,6 +990,92 @@
             });
         })();
 
+        // ==================== Unified Player Wrapper ====================
+        let videoMode = 'youtube'; // 'youtube' or 'local'
+        let ytPlayer = null;
+        const localVideo = document.getElementById('localPlayer');
+
+        // Unified API: player object used by all other code
+        // Wraps both YouTube and <video> with same interface
+        function createPlayerProxy() {
+            return {
+                getCurrentTime() {
+                    if (videoMode === 'local') return localVideo.currentTime;
+                    return ytPlayer ? ytPlayer.getCurrentTime() : 0;
+                },
+                getDuration() {
+                    if (videoMode === 'local') return localVideo.duration || 0;
+                    return ytPlayer ? ytPlayer.getDuration() : 0;
+                },
+                seekTo(time, allowSeekAhead) {
+                    if (videoMode === 'local') { localVideo.currentTime = time; }
+                    else if (ytPlayer) ytPlayer.seekTo(time, allowSeekAhead);
+                },
+                playVideo() {
+                    if (videoMode === 'local') localVideo.play();
+                    else if (ytPlayer) ytPlayer.playVideo();
+                },
+                pauseVideo() {
+                    if (videoMode === 'local') localVideo.pause();
+                    else if (ytPlayer) ytPlayer.pauseVideo();
+                },
+                getPlayerState() {
+                    if (videoMode === 'local') return localVideo.paused ? 2 : 1; // 2=PAUSED, 1=PLAYING
+                    return ytPlayer ? ytPlayer.getPlayerState() : -1;
+                },
+                setPlaybackRate(rate) {
+                    if (videoMode === 'local') localVideo.playbackRate = rate;
+                    else if (ytPlayer) ytPlayer.setPlaybackRate(rate);
+                },
+                loadVideoById(id) {
+                    if (ytPlayer) ytPlayer.loadVideoById(id);
+                }
+            };
+        }
+
+        player = createPlayerProxy();
+
+        // Local video events
+        localVideo.addEventListener('play', () => updatePlayBtn(true));
+        localVideo.addEventListener('pause', () => updatePlayBtn(false));
+
+        function updatePlayBtn(playing) {
+            document.getElementById('playBtn').textContent = playing ? '⏸ 暫停' : '▶ 播放';
+        }
+
+        function switchToLocal() {
+            videoMode = 'local';
+            document.getElementById('ytPlayer').style.display = 'none';
+            localVideo.style.display = 'block';
+            // Hide YouTube iframe if it exists
+            const iframe = document.querySelector('#ytPlayer iframe, #ytPlayer div');
+            if (iframe) iframe.style.display = 'none';
+        }
+
+        function switchToYouTube() {
+            videoMode = 'youtube';
+            localVideo.style.display = 'none';
+            localVideo.pause();
+            localVideo.src = '';
+            document.getElementById('ytPlayer').style.display = 'block';
+            const iframe = document.querySelector('#ytPlayer iframe');
+            if (iframe) iframe.style.display = 'block';
+            document.getElementById('localFileName').textContent = '';
+        }
+
+        function loadLocalVideo(input) {
+            const file = input.files[0];
+            if (!file) return;
+            switchToLocal();
+            localVideo.src = URL.createObjectURL(file);
+            localVideo.load();
+            document.getElementById('localFileName').textContent = file.name;
+            localVideo.addEventListener('loadedmetadata', function onMeta() {
+                localVideo.removeEventListener('loadedmetadata', onMeta);
+                startUpdateLoop();
+            });
+        }
+
         // ==================== YouTube Player ====================
         function extractVideoId(url) {
             const patterns = [
@@ -1000,7 +1095,7 @@
 
         function onYouTubeIframeAPIReady() {
             const videoId = extractVideoId(document.getElementById('videoUrl').value);
-            player = new YT.Player('player', {
+            ytPlayer = new YT.Player('ytPlayer', {
                 videoId: videoId || 'GvHOEJPabuk',
                 playerVars: {
                     autoplay: 0,
@@ -1022,12 +1117,8 @@
         }
 
         function onPlayerStateChange(event) {
-            const playBtn = document.getElementById('playBtn');
-            if (event.data === YT.PlayerState.PLAYING) {
-                playBtn.textContent = '⏸ 暫停';
-            } else {
-                playBtn.textContent = '▶ 播放';
-            }
+            if (videoMode !== 'youtube') return;
+            updatePlayBtn(event.data === YT.PlayerState.PLAYING);
         }
 
         function loadVideo() {
@@ -1037,9 +1128,8 @@
                 alert('請輸入有效的 YouTube 網址');
                 return;
             }
-            if (player && player.loadVideoById) {
-                player.loadVideoById(videoId);
-            }
+            switchToYouTube();
+            player.loadVideoById(videoId);
         }
 
         // ==================== Time helpers ====================
@@ -1270,7 +1360,7 @@
         function togglePlay() {
             if (!player) return;
             const state = player.getPlayerState();
-            if (state === YT.PlayerState.PLAYING) {
+            if (state === 1) { // 1 = PLAYING
                 player.pauseVideo();
             } else {
                 player.playVideo();
