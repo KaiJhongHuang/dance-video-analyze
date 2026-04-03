@@ -124,33 +124,6 @@
             text-align: right;
         }
 
-        /* Inline beat display widget */
-        .beat-display-widget {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            background: #16213e;
-            border-radius: 12px;
-            padding: 10px 20px;
-            margin-bottom: 20px;
-        }
-
-        .beat-display-num {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #e94560;
-            line-height: 1;
-            min-width: 50px;
-            text-align: center;
-        }
-
-        .beat-display-info {
-            font-size: 0.85rem;
-            color: #888;
-            line-height: 1.4;
-        }
-
         .fullscreen-beat-big {
             font-size: 4rem;
             font-weight: bold;
@@ -628,15 +601,6 @@
             </div>
         </div>
 
-        <!-- Beat Display -->
-        <div class="beat-display-widget" id="beatDisplayWidget" style="display:none;">
-            <div class="beat-display-num" id="bdNum">-</div>
-            <div class="beat-display-info">
-                <div id="bdGroup">--</div>
-                <div id="bdTime">--</div>
-            </div>
-        </div>
-
         <!-- Beat Timeline -->
         <div class="draggable-section" data-section="beats" id="beatTimeline" style="display:none;">
             <div class="panel">
@@ -657,6 +621,7 @@
                 <div class="controls-row">
                     <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
                     <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">循環: OFF</button>
+                    <button class="btn btn-secondary" onclick="toggleFullscreen()">📺 全螢幕</button>
                 </div>
 
                 <div class="speed-control">
@@ -744,7 +709,6 @@
                 <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
                 <button class="btn btn-secondary" id="metronomeBtn" onclick="toggleMetronome()">🥁 節拍器: OFF</button>
                 <button class="btn btn-secondary" onclick="shareLink()">🔗 分享連結</button>
-                <button class="btn btn-secondary" onclick="toggleFullscreen()">📺 全螢幕</button>
             </div>
         </div>
 
@@ -1014,7 +978,6 @@
 
             renderBeats();
             document.getElementById('beatTimeline').style.display = 'block';
-            document.getElementById('beatDisplayWidget').style.display = 'flex';
             buildSliderGroups();
         }
 
@@ -1445,7 +1408,6 @@
             overlay.className = 'fullscreen-overlay';
             overlay.innerHTML = `
                 <button class="btn btn-primary" onclick="togglePlay()" id="fsPlayBtn">▶ 播放</button>
-                <button class="btn btn-secondary" onclick="toggleLoop()">循環</button>
                 <button class="btn btn-secondary" onclick="toggleMirror()">鏡像</button>
                 <button class="btn btn-secondary" onclick="toggleMetronome()">節拍器</button>
                 <button class="btn btn-secondary" onclick="toggleFullscreen()">✕ 離開</button>
@@ -1467,26 +1429,12 @@
         }
 
         function updateFullscreenBeatDisplay() {
-            if (beats.length === 0 || currentBeatIndex < 0) return;
+            if (!isFullscreen || beats.length === 0 || currentBeatIndex < 0) return;
             const beat = beats[currentBeatIndex];
-            const groupLabel = `第 ${beat.groupIndex + 1} 個八拍`;
-            const timeLabel = `${beat.time.toFixed(1)}s`;
-
-            // Inline widget
-            const bdNum = document.getElementById('bdNum');
-            const bdGroup = document.getElementById('bdGroup');
-            const bdTime = document.getElementById('bdTime');
-            if (bdNum) bdNum.textContent = beat.beatNumber;
-            if (bdGroup) bdGroup.textContent = groupLabel;
-            if (bdTime) bdTime.textContent = timeLabel;
-
-            // Fullscreen overlay
-            if (isFullscreen) {
-                const numEl = document.getElementById('fsBeatNum');
-                const subEl = document.getElementById('fsBeatSub');
-                if (numEl) numEl.textContent = beat.beatNumber;
-                if (subEl) subEl.textContent = groupLabel;
-            }
+            const numEl = document.getElementById('fsBeatNum');
+            const subEl = document.getElementById('fsBeatSub');
+            if (numEl) numEl.textContent = beat.beatNumber;
+            if (subEl) subEl.textContent = `第 ${beat.groupIndex + 1} 個八拍`;
         }
 
         // ==================== Beta: Share Link ====================
