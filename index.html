@@ -643,6 +643,7 @@
             <div class="controls-row" style="justify-content:flex-start; margin-bottom:0;">
                 <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
                 <button class="btn btn-secondary" id="metronomeBtn" onclick="toggleMetronome()">🥁 節拍器: OFF</button>
+                <button class="btn btn-secondary" onclick="shareLink()">🔗 分享連結</button>
             </div>
         </div>
 
@@ -852,6 +853,7 @@
 
         function onPlayerReady() {
             startUpdateLoop();
+            if (currentSpeed !== 1) setSpeed(currentSpeed);
             generateBeats();
         }
 
@@ -1303,6 +1305,52 @@
                 playClick(isDownbeat);
             }
         }
+
+        // ==================== Beta: Share Link ====================
+        function shareLink() {
+            const params = new URLSearchParams();
+            params.set('v', document.getElementById('videoUrl').value);
+            params.set('s', document.getElementById('startTime').value);
+            params.set('e', document.getElementById('endTime').value);
+            params.set('c', document.getElementById('beatCount').value);
+            params.set('u', document.getElementById('beatUnit').value);
+            params.set('sp', currentSpeed);
+            const url = window.location.origin + window.location.pathname + '?' + params.toString();
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(() => {
+                    const btn = event.target;
+                    const orig = btn.textContent;
+                    btn.textContent = '✅ 已複製!';
+                    setTimeout(() => btn.textContent = orig, 1500);
+                });
+            } else {
+                prompt('複製此連結分享給舞伴：', url);
+            }
+        }
+
+        function loadFromUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('v')) return false;
+
+            const v = params.get('v');
+            const s = params.get('s');
+            const e = params.get('e');
+            const c = params.get('c');
+            const u = params.get('u');
+            const sp = params.get('sp');
+
+            if (v) document.getElementById('videoUrl').value = v;
+            if (s) document.getElementById('startTime').value = s;
+            if (e) document.getElementById('endTime').value = e;
+            if (c) document.getElementById('beatCount').value = c;
+            if (u) document.getElementById('beatUnit').value = u;
+            if (sp) currentSpeed = parseFloat(sp);
+            return true;
+        }
+
+        // Load URL params on page init
+        loadFromUrlParams();
 
         // ==================== Keyboard shortcuts ====================
         document.addEventListener('keydown', function(e) {
