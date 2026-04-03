@@ -469,9 +469,9 @@
         /* Progress bar */
         .progress-bar-container {
             width: 100%;
-            height: 8px;
+            height: 14px;
             background: #0f3460;
-            border-radius: 4px;
+            border-radius: 6px;
             margin-bottom: 10px;
             cursor: pointer;
             position: relative;
@@ -480,9 +480,29 @@
         .progress-bar {
             height: 100%;
             background: #e94560;
-            border-radius: 4px;
+            border-radius: 6px;
             width: 0%;
             transition: width 0.1s linear;
+        }
+
+        .progress-group-tick {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: rgba(255,255,255,0.3);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .progress-group-label {
+            position: absolute;
+            top: 100%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: #666;
+            margin-top: 2px;
+            pointer-events: none;
         }
 
         .current-time {
@@ -624,14 +644,6 @@
             </div>
         </div>
 
-        <!-- Beat Timeline -->
-        <div class="draggable-section" data-section="beats" id="beatTimeline" style="display:none;">
-            <div class="panel">
-                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎵 拍子時間軸</span></h2>
-                <div id="beatsContainer"></div>
-            </div>
-        </div>
-
         <!-- Controls -->
         <div class="draggable-section" data-section="controls">
             <div class="panel">
@@ -660,6 +672,14 @@
                 </div>
 
                 <div class="loop-status" id="loopStatus"></div>
+            </div>
+        </div>
+
+        <!-- Beat Timeline (single 8-beat slider) -->
+        <div class="draggable-section" data-section="beats" id="beatTimeline" style="display:none;">
+            <div class="panel">
+                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 🎵 八拍</span></h2>
+                <div id="beatsContainer"></div>
             </div>
         </div>
 
@@ -1166,127 +1186,117 @@
             }
 
             renderBeats();
+            renderProgressGroupMarkers();
             document.getElementById('beatTimeline').style.display = 'block';
-            buildSliderGroups();
         }
 
+        // Render group markers on the main progress bar
+        function renderProgressGroupMarkers() {
+            // Remove old markers
+            document.querySelectorAll('.progress-group-tick, .progress-group-label').forEach(el => el.remove());
+
+            const bar = document.getElementById('progressBarContainer');
+            const duration = player.getDuration();
+            if (!duration || duration <= 0 || beats.length === 0) return;
+
+            const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
+            const numGroups = Math.ceil(beats.length / 8);
+
+            // Start marker
+            const startPct = (startTime / duration) * 100;
+            addProgressTick(bar, startPct, '1');
+
+            // Group boundary markers (2nd group onward)
+            for (let g = 1; g < numGroups; g++) {
+                const groupStart = startTime + g * 8 * beatInterval;
+                const pct = (groupStart / duration) * 100;
+                addProgressTick(bar, pct, String(g + 1));
+            }
+
+            // End marker
+            const endPct = (endTime / duration) * 100;
+            addProgressTick(bar, endPct, '');
+        }
+
+        function addProgressTick(bar, pct, label) {
+            const tick = document.createElement('div');
+            tick.className = 'progress-group-tick';
+            tick.style.left = pct + '%';
+            bar.appendChild(tick);
+
+            if (label) {
+                const lbl = document.createElement('div');
+                lbl.className = 'progress-group-label';
+                lbl.style.left = pct + '%';
+                lbl.textContent = label;
+                bar.appendChild(lbl);
+            }
+        }
+
+        // Render a single 8-beat slider (not per-group)
         function renderBeats() {
             const container = document.getElementById('beatsContainer');
             container.innerHTML = '';
 
-            const groups = {};
-            beats.forEach(beat => {
-                if (!groups[beat.groupIndex]) groups[beat.groupIndex] = [];
-                groups[beat.groupIndex].push(beat);
-            });
+            if (beats.length === 0) return;
 
+            const beatsPerGroup = Math.min(8, beats.length);
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
 
-            Object.keys(groups).forEach(groupIdx => {
-                const group = groups[groupIdx];
-                const groupStart = group[0].time;
-                const groupEnd = group[group.length - 1].time + beatInterval;
-                const groupDuration = groupEnd - groupStart;
+            // Single track representing one 8-count cycle
+            const track = document.createElement('div');
+            track.className = 'beat-slider-track';
+            track.id = 'beatSliderTrack';
 
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'beat-slider-group';
+            const fill = document.createElement('div');
+            fill.className = 'beat-slider-fill';
+            fill.id = 'beatSliderFill';
+            track.appendChild(fill);
 
-                // Header
-                const header = document.createElement('div');
-                header.className = 'beat-slider-header';
+            // Tick marks for beats 1-8
+            for (let i = 0; i < beatsPerGroup; i++) {
+                const pct = (i / beatsPerGroup) * 100;
 
-                const toggle = document.createElement('span');
-                toggle.className = 'beat-slider-toggle';
-                toggle.textContent = '▼';
+                const tick = document.createElement('div');
+                tick.className = 'beat-tick' + (i === 0 ? ' first-of-group' : '');
+                tick.style.left = pct + '%';
+                track.appendChild(tick);
 
-                const label = document.createElement('span');
-                label.className = 'beat-slider-label';
-                label.textContent = `第 ${parseInt(groupIdx) + 1} 個八拍 (${groupStart.toFixed(1)}s ~ ${groupEnd.toFixed(1)}s)`;
+                const tickLabel = document.createElement('div');
+                tickLabel.className = 'beat-tick-label';
+                tickLabel.id = `tick-label-${i}`;
+                tickLabel.textContent = i + 1;
+                tickLabel.style.left = pct + '%';
+                track.appendChild(tickLabel);
+            }
 
-                header.appendChild(toggle);
-                header.appendChild(label);
-                groupDiv.appendChild(header);
+            // Thumb
+            const thumb = document.createElement('div');
+            thumb.className = 'beat-slider-thumb';
+            thumb.id = 'beatSliderThumb';
+            track.appendChild(thumb);
 
-                // Slider body (collapsible)
-                const body = document.createElement('div');
-                body.className = 'beat-slider-body';
+            // Click/drag to seek within current 8-count
+            function seekFromEvent(e) {
+                const rect = track.getBoundingClientRect();
+                const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                // Seek within the current group
+                const groupIdx = currentBeatIndex >= 0 ? beats[currentBeatIndex].groupIndex : 0;
+                const groupStart = startTime + groupIdx * beatsPerGroup * beatInterval;
+                const groupDuration = beatsPerGroup * beatInterval;
+                const time = groupStart + ratio * groupDuration;
+                if (player) player.seekTo(time, true);
+            }
 
-                header.addEventListener('click', () => {
-                    body.classList.toggle('collapsed');
-                    toggle.classList.toggle('collapsed');
-                });
+            let isDragging = false;
+            track.addEventListener('mousedown', (e) => { isDragging = true; seekFromEvent(e); e.preventDefault(); });
+            document.addEventListener('mousemove', (e) => { if (isDragging) seekFromEvent(e); });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+            track.addEventListener('touchstart', (e) => { isDragging = true; seekFromEvent(e.touches[0]); e.preventDefault(); }, { passive: false });
+            document.addEventListener('touchmove', (e) => { if (isDragging) seekFromEvent(e.touches[0]); }, { passive: false });
+            document.addEventListener('touchend', () => { isDragging = false; });
 
-                // Track
-                const track = document.createElement('div');
-                track.className = 'beat-slider-track';
-                track.dataset.groupIdx = groupIdx;
-
-                const fill = document.createElement('div');
-                fill.className = 'beat-slider-fill';
-                fill.id = `slider-fill-${groupIdx}`;
-                track.appendChild(fill);
-
-                // Tick marks for each beat
-                group.forEach(beat => {
-                    const pct = ((beat.time - groupStart) / groupDuration) * 100;
-
-                    const tick = document.createElement('div');
-                    tick.className = 'beat-tick' + (beat.beatNumber === 1 ? ' first-of-group' : '');
-                    tick.style.left = pct + '%';
-                    track.appendChild(tick);
-
-                    const tickLabel = document.createElement('div');
-                    tickLabel.className = 'beat-tick-label';
-                    tickLabel.id = `tick-label-${beat.index}`;
-                    tickLabel.textContent = beat.beatNumber;
-                    tickLabel.style.left = pct + '%';
-                    track.appendChild(tickLabel);
-                });
-
-                // Thumb
-                const thumb = document.createElement('div');
-                thumb.className = 'beat-slider-thumb';
-                thumb.id = `slider-thumb-${groupIdx}`;
-                track.appendChild(thumb);
-
-                // Click/drag on track to seek
-                function seekFromEvent(e) {
-                    const rect = track.getBoundingClientRect();
-                    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                    const time = groupStart + ratio * groupDuration;
-                    if (player) player.seekTo(time, true);
-                }
-
-                let isDraggingSlider = false;
-                track.addEventListener('mousedown', (e) => {
-                    isDraggingSlider = true;
-                    seekFromEvent(e);
-                    e.preventDefault();
-                });
-                document.addEventListener('mousemove', (e) => {
-                    if (isDraggingSlider) seekFromEvent(e);
-                });
-                document.addEventListener('mouseup', () => {
-                    isDraggingSlider = false;
-                });
-
-                // Touch support
-                track.addEventListener('touchstart', (e) => {
-                    isDraggingSlider = true;
-                    seekFromEvent(e.touches[0]);
-                    e.preventDefault();
-                });
-                document.addEventListener('touchmove', (e) => {
-                    if (isDraggingSlider) seekFromEvent(e.touches[0]);
-                });
-                document.addEventListener('touchend', () => {
-                    isDraggingSlider = false;
-                });
-
-                body.appendChild(track);
-                groupDiv.appendChild(body);
-                container.appendChild(groupDiv);
-            });
+            container.appendChild(track);
         }
 
         // ==================== Navigation ====================
@@ -1309,52 +1319,28 @@
         }
 
         function highlightBeat(index) {
+            if (beats.length === 0 || index < 0) return;
+            const beatNum = beats[index].beatNumber - 1; // 0-based
             document.querySelectorAll('.beat-tick-label').forEach(el => el.classList.remove('active'));
-            const tickLabel = document.getElementById(`tick-label-${index}`);
+            const tickLabel = document.getElementById(`tick-label-${beatNum}`);
             if (tickLabel) tickLabel.classList.add('active');
         }
 
-        // Cached group info for slider updates (rebuilt on generateBeats)
-        let sliderGroups = [];
-
-        function buildSliderGroups() {
-            sliderGroups = [];
-            if (beats.length === 0) return;
-            const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
-            const groups = {};
-            beats.forEach(b => {
-                if (!groups[b.groupIndex]) groups[b.groupIndex] = [];
-                groups[b.groupIndex].push(b);
-            });
-            Object.keys(groups).forEach(gIdx => {
-                const group = groups[gIdx];
-                const gStart = group[0].time;
-                const gEnd = group[group.length - 1].time + beatInterval;
-                sliderGroups.push({
-                    idx: parseInt(gIdx),
-                    start: gStart,
-                    end: gEnd,
-                    duration: gEnd - gStart,
-                    fill: document.getElementById(`slider-fill-${gIdx}`),
-                    thumb: document.getElementById(`slider-thumb-${gIdx}`)
-                });
-            });
-        }
-
         function updateSliderPositions(currentTime) {
-            for (const g of sliderGroups) {
-                if (currentTime >= g.start && currentTime < g.end) {
-                    const pct = ((currentTime - g.start) / g.duration) * 100;
-                    if (g.fill) g.fill.style.width = pct + '%';
-                    if (g.thumb) { g.thumb.style.left = pct + '%'; g.thumb.style.display = 'block'; }
-                } else if (currentTime >= g.end) {
-                    if (g.fill) g.fill.style.width = '100%';
-                    if (g.thumb) g.thumb.style.display = 'none';
-                } else {
-                    if (g.fill) g.fill.style.width = '0%';
-                    if (g.thumb) g.thumb.style.display = 'none';
-                }
-            }
+            if (beats.length === 0) return;
+            const beatsPerGroup = Math.min(8, beats.length);
+            const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
+            const groupDuration = beatsPerGroup * beatInterval;
+
+            // Find which group we're in
+            const elapsed = currentTime - startTime;
+            const posInGroup = groupDuration > 0 ? ((elapsed % groupDuration) / groupDuration) * 100 : 0;
+            const pct = Math.max(0, Math.min(100, posInGroup));
+
+            const fill = document.getElementById('beatSliderFill');
+            const thumb = document.getElementById('beatSliderThumb');
+            if (fill) fill.style.width = pct + '%';
+            if (thumb) thumb.style.left = pct + '%';
         }
 
         function togglePlay() {
@@ -1409,10 +1395,7 @@
                 const current = player.getCurrentTime();
                 const duration = player.getDuration();
 
-                if (beats.length > 0) {
-                    const progress = ((current - startTime) / (endTime - startTime)) * 100;
-                    document.getElementById('progressBar').style.width = Math.max(0, Math.min(100, progress)) + '%';
-                } else if (duration > 0) {
+                if (duration > 0) {
                     document.getElementById('progressBar').style.width = (current / duration * 100) + '%';
                 }
 
@@ -1450,12 +1433,9 @@
             if (!player) return;
             const rect = this.getBoundingClientRect();
             const ratio = (e.clientX - rect.left) / rect.width;
-            if (beats.length > 0) {
-                const time = startTime + ratio * (endTime - startTime);
-                player.seekTo(time, true);
-            } else {
-                const time = ratio * player.getDuration();
-                player.seekTo(time, true);
+            const duration = player.getDuration();
+            if (duration > 0) {
+                player.seekTo(ratio * duration, true);
             }
         });
 
@@ -1635,15 +1615,58 @@
 
             const groupIdx = currentBeatIndex >= 0 ? beats[currentBeatIndex].groupIndex : 0;
             const groupBeats = beats.filter(b => b.groupIndex === groupIdx);
-            const videoId = extractVideoId(document.getElementById('videoUrl').value);
-            if (!videoId) { alert('無效的影片網址'); return; }
 
-            const params = new URLSearchParams();
-            params.set('preview', '1');
-            params.set('vid', videoId);
-            params.set('g', groupIdx);
-            params.set('beats', groupBeats.map(b => b.beatNumber + ':' + b.time.toFixed(2)).join(','));
-            window.open(window.location.pathname + '?' + params.toString(), '_blank');
+            if (videoMode === 'local') {
+                openLocalBeatPreview(groupIdx, groupBeats);
+            } else {
+                const videoId = extractVideoId(document.getElementById('videoUrl').value);
+                if (!videoId) { alert('無效的影片網址'); return; }
+                const params = new URLSearchParams();
+                params.set('preview', '1');
+                params.set('vid', videoId);
+                params.set('g', groupIdx);
+                params.set('beats', groupBeats.map(b => b.beatNumber + ':' + b.time.toFixed(2)).join(','));
+                window.open(window.location.pathname + '?' + params.toString(), '_blank');
+            }
+        }
+
+        // Local video: capture frames with canvas
+        function openLocalBeatPreview(groupIdx, groupBeats) {
+            const video = document.getElementById('localPlayer');
+            const captures = [];
+            let idx = 0;
+
+            function captureNext() {
+                if (idx >= groupBeats.length) {
+                    showLocalPreview(groupIdx, captures);
+                    return;
+                }
+                video.currentTime = groupBeats[idx].time;
+                video.addEventListener('seeked', function onSeeked() {
+                    video.removeEventListener('seeked', onSeeked);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    captures.push({ num: groupBeats[idx].beatNumber, dataUrl: canvas.toDataURL('image/jpeg', 0.85) });
+                    idx++;
+                    captureNext();
+                });
+            }
+
+            captureNext();
+        }
+
+        function showLocalPreview(groupIdx, captures) {
+            const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+            <title>八拍預覽</title>
+            <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#1a1a2e;overflow:hidden;}
+            .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;width:100%;height:100vh;}
+            .grid img{width:100%;height:100%;object-fit:cover;}
+            @media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,1fr);}}</style></head>
+            <body><div class="grid">${captures.map(c => `<img src="${c.dataUrl}">`).join('')}</div></body></html>`;
+            const blob = new Blob([html], { type: 'text/html' });
+            window.open(URL.createObjectURL(blob), '_blank');
         }
 
         // ==================== Beta: Share Link ====================
