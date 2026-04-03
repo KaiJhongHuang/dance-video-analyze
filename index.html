@@ -416,43 +416,88 @@
             padding: 10px 18px;
         }
 
-        .speed-control {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+        .speed-slider-wrap {
+            position: relative;
+            margin-top: 20px;
             margin-bottom: 15px;
         }
 
-        .speed-control label {
-            font-size: 0.9rem;
-            color: #aaa;
-        }
-
-        .speed-buttons {
-            display: flex;
-            gap: 6px;
-        }
-
-        .speed-btn {
-            padding: 6px 12px;
-            border: 1px solid #444;
-            border-radius: 6px;
+        .speed-slider-track {
+            position: relative;
+            width: 100%;
+            height: 14px;
             background: #0f3460;
-            color: #ccc;
-            font-size: 0.85rem;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.15s;
+            user-select: none;
         }
 
-        .speed-btn:hover {
-            border-color: #e94560;
+        .speed-slider-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #16213e, #e94560);
+            border-radius: 6px 0 0 6px;
+            pointer-events: none;
         }
 
-        .speed-btn.active {
-            background: #e94560;
-            border-color: #e94560;
-            color: #fff;
+        .speed-slider-thumb {
+            position: absolute;
+            top: -3px;
+            width: 4px;
+            height: 20px;
+            background: #fff;
+            border-radius: 2px;
+            pointer-events: none;
+            transform: translateX(-2px);
+            box-shadow: 0 0 6px rgba(233,69,96,0.6);
+        }
+
+        .speed-tick {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: rgba(255,255,255,0.15);
+            pointer-events: none;
+        }
+
+        .speed-tick.active-tick {
+            width: 2px;
+            background: rgba(255,255,255,0.4);
+        }
+
+        .speed-label-top {
+            position: absolute;
+            bottom: 100%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: #888;
+            margin-bottom: 2px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .speed-label-top.active-tick {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        .speed-label-bottom {
+            position: absolute;
+            top: 100%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: #666;
+            margin-top: 3px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .speed-label-bottom.active-tick {
+            color: #e94560;
+            font-weight: bold;
         }
 
         .loop-status {
@@ -594,19 +639,8 @@
                 padding: 8px 12px;
             }
 
-            .speed-control {
-                flex-direction: column;
-                gap: 6px;
-            }
-
-            .speed-buttons {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            .speed-btn {
-                padding: 5px 10px;
-                font-size: 0.8rem;
+            .speed-label-top, .speed-label-bottom {
+                font-size: 0.55rem;
             }
 
             .url-row {
@@ -661,15 +695,10 @@
                     <button class="btn btn-secondary" onclick="toggleFullscreen()">📺 全螢幕</button>
                 </div>
 
-                <div class="speed-control">
-                    <label>速度：</label>
-                    <div class="speed-buttons">
-                        <button class="speed-btn" onclick="setSpeed(0.25)">0.25x</button>
-                        <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
-                        <button class="speed-btn" onclick="setSpeed(0.75)">0.75x</button>
-                        <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
-                        <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
-                        <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+                <div class="speed-slider-wrap">
+                    <div class="speed-slider-track" id="speedSliderTrack">
+                        <div class="speed-slider-fill" id="speedSliderFill"></div>
+                        <div class="speed-slider-thumb" id="speedSliderThumb"></div>
                     </div>
                 </div>
 
@@ -1160,6 +1189,7 @@
 
             renderBeats();
             renderProgressGroupMarkers();
+            renderSpeedTicks();
         }
 
         // Render group markers on the main progress bar
@@ -1349,14 +1379,138 @@
             if (beats.length > 0) highlightBeat(0);
         }
 
+        let baseBpm = 0;
+
+        function calcBpm() {
+            const duration = endTime - startTime;
+            const count = parseInt(document.getElementById('beatCount').value) || 0;
+            if (duration <= 0 || count <= 0) { baseBpm = 0; return; }
+            const totalBeats = 8 * count;
+            baseBpm = (totalBeats / duration) * 60;
+        }
+
         function setSpeed(speed) {
-            if (!player) return;
+            speed = Math.round(speed * 100) / 100;
+            speed = Math.max(0.5, Math.min(1.5, speed));
             currentSpeed = speed;
-            player.setPlaybackRate(speed);
-            document.querySelectorAll('.speed-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent === `${speed}x`);
+            if (player) player.setPlaybackRate(speed);
+            updateSpeedSlider();
+        }
+
+        function updateSpeedSlider() {
+            const pct = ((currentSpeed - 0.5) / (1.5 - 0.5)) * 100;
+            const fill = document.getElementById('speedSliderFill');
+            const thumb = document.getElementById('speedSliderThumb');
+            if (fill) fill.style.width = pct + '%';
+            if (thumb) thumb.style.left = pct + '%';
+
+            // Update active tick highlights
+            document.querySelectorAll('.speed-tick, .speed-label-top, .speed-label-bottom').forEach(el => {
+                el.classList.remove('active-tick');
+            });
+            const speedStr = currentSpeed.toFixed(2);
+            document.querySelectorAll('.speed-tick').forEach(el => {
+                if (el.dataset.speed === speedStr) {
+                    el.classList.add('active-tick');
+                    const pctVal = el.style.left;
+                    document.querySelectorAll(`.speed-label-top[data-speed="${speedStr}"], .speed-label-bottom[data-speed="${speedStr}"]`).forEach(l => l.classList.add('active-tick'));
+                }
             });
         }
+
+        function renderSpeedTicks() {
+            const track = document.getElementById('speedSliderTrack');
+            // Remove old ticks/labels
+            track.querySelectorAll('.speed-tick, .speed-label-top, .speed-label-bottom').forEach(el => el.remove());
+
+            calcBpm();
+
+            // Build tick list: always include 0.5x, 1.0x, 1.5x
+            // Then add ticks at BPM intervals of 20 within range
+            const ticks = new Map(); // speed -> { bpm, speed }
+            ticks.set('0.50', { speed: 0.5, label: '0.5x' });
+            ticks.set('1.00', { speed: 1.0, label: '1x' });
+            ticks.set('1.50', { speed: 1.5, label: '1.5x' });
+
+            if (baseBpm > 0) {
+                // Calculate BPM at boundaries
+                const bpmAt05 = baseBpm * 0.5;
+                const bpmAt15 = baseBpm * 1.5;
+                // Add ticks every 20 BPM
+                const startBpm = Math.ceil(bpmAt05 / 20) * 20;
+                const endBpm = Math.floor(bpmAt15 / 20) * 20;
+                for (let bpm = startBpm; bpm <= endBpm; bpm += 20) {
+                    const spd = bpm / baseBpm;
+                    if (spd >= 0.5 && spd <= 1.5) {
+                        const key = spd.toFixed(2);
+                        if (!ticks.has(key)) {
+                            ticks.set(key, { speed: spd, label: spd.toFixed(2) + 'x' });
+                        }
+                    }
+                }
+            }
+
+            // Render ticks
+            ticks.forEach((info, key) => {
+                const pct = ((info.speed - 0.5) / (1.5 - 0.5)) * 100;
+
+                const tick = document.createElement('div');
+                tick.className = 'speed-tick';
+                tick.style.left = pct + '%';
+                tick.dataset.speed = key;
+                track.appendChild(tick);
+
+                // Top label: BPM
+                const topLbl = document.createElement('div');
+                topLbl.className = 'speed-label-top';
+                topLbl.style.left = pct + '%';
+                topLbl.dataset.speed = key;
+                if (baseBpm > 0) {
+                    const bpmVal = baseBpm * info.speed;
+                    topLbl.textContent = Math.round(bpmVal);
+                }
+                track.appendChild(topLbl);
+
+                // Bottom label: speed ratio
+                const botLbl = document.createElement('div');
+                botLbl.className = 'speed-label-bottom';
+                botLbl.style.left = pct + '%';
+                botLbl.dataset.speed = key;
+                botLbl.textContent = info.label;
+                track.appendChild(botLbl);
+            });
+
+            updateSpeedSlider();
+        }
+
+        // Speed slider interaction
+        (function() {
+            const track = document.getElementById('speedSliderTrack');
+            if (!track) return;
+            function seekSpeed(e) {
+                const rect = track.getBoundingClientRect();
+                const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                const speed = 0.5 + ratio * (1.5 - 0.5);
+                // Snap to nearest tick
+                const ticks = track.querySelectorAll('.speed-tick');
+                let closest = speed, minDist = Infinity;
+                ticks.forEach(t => {
+                    const tSpd = parseFloat(t.dataset.speed);
+                    const tPct = (tSpd - 0.5) / (1.5 - 0.5);
+                    const dist = Math.abs(ratio - tPct);
+                    if (dist < 0.03 && dist < minDist) { minDist = dist; closest = tSpd; }
+                });
+                setSpeed(closest);
+            }
+            let dragging = false;
+            track.addEventListener('mousedown', (e) => { dragging = true; seekSpeed(e); e.preventDefault(); });
+            document.addEventListener('mousemove', (e) => { if (dragging) seekSpeed(e); });
+            document.addEventListener('mouseup', () => { dragging = false; });
+            track.addEventListener('touchstart', (e) => { dragging = true; seekSpeed(e.touches[0]); e.preventDefault(); }, { passive: false });
+            document.addEventListener('touchmove', (e) => { if (dragging) seekSpeed(e.touches[0]); }, { passive: false });
+            document.addEventListener('touchend', () => { dragging = false; });
+        })();
+        renderSpeedTicks();
 
         // ==================== Update loop ====================
         function startUpdateLoop() {
@@ -1740,11 +1894,11 @@
                     break;
                 case '-':
                 case '_':
-                    setSpeed(Math.max(0.25, currentSpeed - 0.25));
+                    setSpeed(Math.max(0.5, currentSpeed - 0.05));
                     break;
                 case '=':
                 case '+':
-                    setSpeed(Math.min(2, currentSpeed + 0.25));
+                    setSpeed(Math.min(1.5, currentSpeed + 0.05));
                     break;
             }
         });
