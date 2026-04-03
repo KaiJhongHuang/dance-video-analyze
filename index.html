@@ -722,23 +722,20 @@
                     <span id="localFileName" style="font-size:0.8rem; color:#888;"></span>
                 </div>
                 <div class="settings-row">
-                    <div class="field">
+                    <div class="field" style="flex:2;">
                         <label>
-                            開始秒數
+                            數拍範圍
                             <span class="info-icon">?
-                                <span class="tooltip">按在第 1 個八拍的第 1 拍的瞬間</span>
+                                <span class="tooltip">開始：第 1 個八拍的第 1 拍瞬間<br>結束：最後八拍結束後，假想的「下一拍」瞬間</span>
                             </span>
                         </label>
-                        <input type="number" id="startTime" value="4.6" step="0.1" min="0" oninput="generateBeats()">
-                    </div>
-                    <div class="field">
-                        <label>
-                            結束秒數
-                            <span class="info-icon">?
-                                <span class="tooltip">按在最後一個八拍結束後，<br>假想的「下一拍」的瞬間<br>（例如 3 組八拍，按在第 4 組的第 1 拍位置）</span>
-                            </span>
-                        </label>
-                        <input type="number" id="endTime" value="16.0" step="0.1" min="0" oninput="generateBeats()">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button class="btn btn-secondary" onclick="captureStartTime()" style="padding:4px 8px; font-size:0.8rem;" title="擷取開始時間">▶|</button>
+                            <input type="text" id="beatRange" value="0:04.6 ~ 0:16.0" oninput="parseBeatRange()" style="text-align:center; flex:1;">
+                            <button class="btn btn-secondary" onclick="captureEndTime()" style="padding:4px 8px; font-size:0.8rem;" title="擷取結束時間">|◀</button>
+                        </div>
+                        <input type="hidden" id="startTime" value="4.6">
+                        <input type="hidden" id="endTime" value="16.0">
                     </div>
                     <div class="field">
                         <label>八拍組數</label>
@@ -823,17 +820,17 @@
             document.body.appendChild(wrapper);
             document.body.style.margin = '0';
             document.body.style.padding = '0';
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = 'auto';
 
             // Add responsive style
             const style = document.createElement('style');
-            style.textContent = '@media(max-width:700px){#previewGrid{grid-template-columns:repeat(2,1fr)!important;grid-template-rows:repeat(4,auto)!important;min-height:auto!important;padding-bottom:60px;}}';
+            style.textContent = '@media(max-width:700px){#previewGrid{grid-template-columns:repeat(2,1fr)!important;min-height:auto!important;padding-bottom:60px;} #previewGrid>div{aspect-ratio:16/9!important;}}';
             document.head.appendChild(style);
 
             const grid = document.getElementById('previewGrid');
             previewBeats.forEach((beat, i) => {
                 const cell = document.createElement('div');
-                cell.style.cssText = 'overflow:hidden; position:relative;';
+                cell.style.cssText = 'overflow:hidden; position:relative; aspect-ratio:16/9;';
                 cell.innerHTML = `
                     <div id="pp${i}" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
                 `;
@@ -1166,6 +1163,56 @@
             }
             switchToYouTube();
             player.loadVideoById(videoId);
+        }
+
+        // ==================== Beat range helpers ====================
+        function formatTimeMMSS(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = (seconds % 60).toFixed(1);
+            return `${m}:${s.padStart(4, '0')}`;
+        }
+
+        function parseTimeMMSS(str) {
+            str = str.trim();
+            // Support "m:ss.s" or just "ss.s"
+            const parts = str.split(':');
+            if (parts.length === 2) {
+                return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+            }
+            return parseFloat(str);
+        }
+
+        function updateBeatRangeDisplay() {
+            const s = parseFloat(document.getElementById('startTime').value) || 0;
+            const e = parseFloat(document.getElementById('endTime').value) || 0;
+            document.getElementById('beatRange').value = `${formatTimeMMSS(s)} ~ ${formatTimeMMSS(e)}`;
+        }
+
+        function parseBeatRange() {
+            const val = document.getElementById('beatRange').value;
+            const parts = val.split('~');
+            if (parts.length !== 2) return;
+            const s = parseTimeMMSS(parts[0]);
+            const e = parseTimeMMSS(parts[1]);
+            if (!isNaN(s)) document.getElementById('startTime').value = s;
+            if (!isNaN(e)) document.getElementById('endTime').value = e;
+            generateBeats();
+        }
+
+        function captureStartTime() {
+            if (!player || !player.getCurrentTime) return;
+            const time = parseFloat(player.getCurrentTime().toFixed(1));
+            document.getElementById('startTime').value = time;
+            updateBeatRangeDisplay();
+            generateBeats();
+        }
+
+        function captureEndTime() {
+            if (!player || !player.getCurrentTime) return;
+            const time = parseFloat(player.getCurrentTime().toFixed(1));
+            document.getElementById('endTime').value = time;
+            updateBeatRangeDisplay();
+            generateBeats();
         }
 
         // ==================== Beat generation ====================
@@ -1574,8 +1621,7 @@
 
             const lines = [
                 `影片: ${url}`,
-                `開始: ${start}s`,
-                `結束: ${end}s`,
+                `範圍: ${formatTimeMMSS(start)} ~ ${formatTimeMMSS(end)}`,
                 `拍數: ${count} 組八拍`,
                 `速度: ${currentSpeed}x`
             ];
@@ -1596,6 +1642,13 @@
                     if (k === '影片') config.url = value;
                     else if (k === '開始') config.start = parseFloat(value);
                     else if (k === '結束') config.end = parseFloat(value);
+                    else if (k === '範圍') {
+                        const rParts = value.split('~');
+                        if (rParts.length === 2) {
+                            config.start = parseTimeMMSS(rParts[0]);
+                            config.end = parseTimeMMSS(rParts[1]);
+                        }
+                    }
                     else if (k === '拍數') {
                         const match = value.match(/^(\d+)\s*組/);
                         if (match) {
@@ -1610,6 +1663,7 @@
                 if (config.end != null) document.getElementById('endTime').value = config.end;
                 if (config.count != null) document.getElementById('beatCount').value = config.count;
                 if (config.speed) setSpeed(config.speed);
+                updateBeatRangeDisplay();
                 loadVideo();
                 generateBeats();
             } catch (e) {
@@ -1854,6 +1908,7 @@
             if (e) document.getElementById('endTime').value = e;
             if (c) document.getElementById('beatCount').value = c;
             if (sp) currentSpeed = parseFloat(sp);
+            updateBeatRangeDisplay();
             return true;
         }
 
