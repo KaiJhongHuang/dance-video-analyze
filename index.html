@@ -73,6 +73,70 @@
             transform: scaleX(-1);
         }
 
+        /* Fullscreen mode */
+        .fullscreen-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fullscreen-mode .video-wrapper {
+            flex: 1;
+            padding-bottom: 0;
+            border-radius: 0;
+        }
+
+        .fullscreen-mode .video-wrapper iframe {
+            width: 100%;
+            height: 100%;
+        }
+
+        .fullscreen-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 10001;
+        }
+
+        .fullscreen-overlay .btn {
+            font-size: 0.85rem;
+            padding: 6px 14px;
+        }
+
+        .fullscreen-beat-display {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            z-index: 10001;
+            text-align: right;
+        }
+
+        .fullscreen-beat-big {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #e94560;
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(233,69,96,0.5);
+        }
+
+        .fullscreen-beat-sub {
+            font-size: 1rem;
+            color: #aaa;
+        }
+
         /* Video Section */
         .video-wrapper {
             position: relative;
@@ -644,6 +708,7 @@
                 <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
                 <button class="btn btn-secondary" id="metronomeBtn" onclick="toggleMetronome()">🥁 節拍器: OFF</button>
                 <button class="btn btn-secondary" onclick="shareLink()">🔗 分享連結</button>
+                <button class="btn btn-secondary" onclick="toggleFullscreen()">📺 全螢幕</button>
             </div>
         </div>
 
@@ -1180,6 +1245,7 @@
                         currentBeatIndex = closestIndex;
                         highlightBeat(closestIndex);
                         checkMetronome();
+                        updateFullscreenBeatDisplay();
                     }
                 }
 
@@ -1306,6 +1372,72 @@
             }
         }
 
+        // ==================== Beta: Fullscreen ====================
+        let isFullscreen = false;
+        let fullscreenContainer = null;
+
+        function toggleFullscreen() {
+            if (isFullscreen) {
+                exitFullscreen();
+            } else {
+                enterFullscreen();
+            }
+        }
+
+        function enterFullscreen() {
+            isFullscreen = true;
+            const videoSection = document.querySelector('[data-section="video"]');
+
+            fullscreenContainer = document.createElement('div');
+            fullscreenContainer.className = 'fullscreen-mode';
+            fullscreenContainer.id = 'fullscreenContainer';
+
+            // Move video into fullscreen container
+            const wrapper = videoSection.querySelector('.video-wrapper');
+            fullscreenContainer.appendChild(wrapper);
+
+            // Beat display overlay
+            const beatDisplay = document.createElement('div');
+            beatDisplay.className = 'fullscreen-beat-display';
+            beatDisplay.id = 'fullscreenBeatDisplay';
+            beatDisplay.innerHTML = '<div class="fullscreen-beat-big" id="fsBeatNum">-</div><div class="fullscreen-beat-sub" id="fsBeatSub"></div>';
+            fullscreenContainer.appendChild(beatDisplay);
+
+            // Bottom controls overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'fullscreen-overlay';
+            overlay.innerHTML = `
+                <button class="btn btn-primary" onclick="togglePlay()" id="fsPlayBtn">▶ 播放</button>
+                <button class="btn btn-secondary" onclick="toggleLoop()">循環</button>
+                <button class="btn btn-secondary" onclick="toggleMirror()">鏡像</button>
+                <button class="btn btn-secondary" onclick="toggleMetronome()">節拍器</button>
+                <button class="btn btn-secondary" onclick="toggleFullscreen()">✕ 離開</button>
+            `;
+            fullscreenContainer.appendChild(overlay);
+
+            document.body.appendChild(fullscreenContainer);
+            document.body.style.overflow = 'hidden';
+        }
+
+        function exitFullscreen() {
+            isFullscreen = false;
+            const videoSection = document.querySelector('[data-section="video"]');
+            const wrapper = fullscreenContainer.querySelector('.video-wrapper');
+            videoSection.appendChild(wrapper);
+            fullscreenContainer.remove();
+            fullscreenContainer = null;
+            document.body.style.overflow = '';
+        }
+
+        function updateFullscreenBeatDisplay() {
+            if (!isFullscreen || beats.length === 0 || currentBeatIndex < 0) return;
+            const beat = beats[currentBeatIndex];
+            const numEl = document.getElementById('fsBeatNum');
+            const subEl = document.getElementById('fsBeatSub');
+            if (numEl) numEl.textContent = beat.beatNumber;
+            if (subEl) subEl.textContent = `第 ${beat.groupIndex + 1} 個八拍`;
+        }
+
         // ==================== Beta: Share Link ====================
         function shareLink() {
             const params = new URLSearchParams();
@@ -1357,6 +1489,9 @@
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
             switch (e.key) {
+                case 'Escape':
+                    if (isFullscreen) exitFullscreen();
+                    break;
                 case ' ':
                     e.preventDefault();
                     togglePlay();
