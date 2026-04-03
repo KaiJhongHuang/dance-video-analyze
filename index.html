@@ -69,6 +69,10 @@
             letter-spacing: 2px;
         }
 
+        .video-wrapper.mirrored iframe {
+            transform: scaleX(-1);
+        }
+
         /* Video Section */
         .video-wrapper {
             position: relative;
@@ -630,6 +634,17 @@
             </div>
         </div>
 
+        <!-- Beta Features -->
+        <div class="panel" style="margin-bottom:20px; border: 1px solid #e9456044;">
+            <h2 style="display:flex; align-items:center; gap:8px;">
+                🧪 Beta 功能
+                <span style="font-size:0.65rem; background:#e94560; color:#fff; padding:2px 8px; border-radius:4px;">BETA</span>
+            </h2>
+            <div class="controls-row" style="justify-content:flex-start; margin-bottom:0;">
+                <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
+            </div>
+        </div>
+
         <!-- Keyboard Hints -->
         <div class="keyboard-hints">
             <h3>⌨️ 鍵盤快捷鍵</h3>
@@ -638,6 +653,7 @@
             <div class="hint-row"><kbd>Shift+←</kbd> / <kbd>Shift+→</kbd> 上/下一個八拍</div>
             <div class="hint-row"><kbd>L</kbd> 開關循環播放</div>
             <div class="hint-row"><kbd>R</kbd> 回到開始</div>
+            <div class="hint-row"><kbd>M</kbd> 鏡像翻轉</div>
             <div class="hint-row"><kbd>-</kbd> / <kbd>+</kbd> 減速/加速</div>
         </div>
 
@@ -1240,6 +1256,15 @@
             }
         }
 
+        // ==================== Beta: Mirror ====================
+        let isMirrored = false;
+        function toggleMirror() {
+            isMirrored = !isMirrored;
+            document.querySelector('.video-wrapper').classList.toggle('mirrored', isMirrored);
+            document.getElementById('mirrorBtn').textContent = `🪞 鏡像: ${isMirrored ? 'ON' : 'OFF'}`;
+            document.getElementById('mirrorBtn').classList.toggle('btn-active', isMirrored);
+        }
+
         // ==================== Keyboard shortcuts ====================
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
@@ -1264,6 +1289,10 @@
                 case 'r':
                 case 'R':
                     jumpToStart();
+                    break;
+                case 'm':
+                case 'M':
+                    toggleMirror();
                     break;
                 case '-':
                 case '_':
