@@ -710,17 +710,18 @@
         <div class="draggable-section" data-section="settings">
             <div class="panel">
                 <h2><span class="drag-handle"><span class="drag-icon">⠿</span> ⚙️ 設定</span></h2>
-                <div class="url-row">
-                    <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=GvHOEJPabuk">
-                    <button class="btn btn-primary" onclick="loadVideo()">載入影片</button>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-                    <label class="btn btn-secondary" style="cursor:pointer; margin:0;">
-                        📁 選擇本機影片
+                <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                    <div class="url-row" style="flex:1; min-width:0; margin-bottom:0;">
+                        <input type="text" id="videoUrl" placeholder="YouTube 影片網址" value="https://www.youtube.com/watch?v=YQq3KidUqQ0">
+                        <button class="btn btn-primary" onclick="loadVideo()">載入</button>
+                    </div>
+                    <label class="btn btn-secondary" style="cursor:pointer; margin:0; white-space:nowrap;">
+                        📁 本機影片
                         <input type="file" id="localFileInput" accept="video/*" style="display:none;" onchange="loadLocalVideo(this)">
                     </label>
-                    <button class="btn btn-secondary" id="autoDetectBtn" onclick="autoDetectBeats()" style="display:none;">🎵 自動偵測節拍</button>
-                    <span id="localFileName" style="font-size:0.8rem; color:#888;"></span>
+                </div>
+                <div id="localFileNameWrap" style="display:none; font-size:0.8rem; color:#888; margin:-10px 0 10px 0;">
+                    <span id="localFileName"></span>
                 </div>
                 <div class="settings-row">
                     <div class="field" style="flex:2;">
@@ -732,15 +733,15 @@
                         </label>
                         <div style="display:flex; align-items:center; gap:6px;">
                             <button class="btn btn-secondary" onclick="captureStartTime()" style="padding:4px 8px; font-size:0.8rem;" title="擷取開始時間">▶|</button>
-                            <input type="text" id="beatRange" value="0:04.6 ~ 0:16.0" oninput="parseBeatRange()" style="text-align:center; flex:1;">
+                            <input type="text" id="beatRange" value="0:06.90 ~ 1:49.00" oninput="parseBeatRange()" style="text-align:center; flex:1;">
                             <button class="btn btn-secondary" onclick="captureEndTime()" style="padding:4px 8px; font-size:0.8rem;" title="擷取結束時間">|◀</button>
                         </div>
-                        <input type="hidden" id="startTime" value="4.6">
-                        <input type="hidden" id="endTime" value="16.0">
+                        <input type="hidden" id="startTime" value="6.9">
+                        <input type="hidden" id="endTime" value="109.0">
                     </div>
                     <div class="field">
                         <label>八拍組數</label>
-                        <input type="number" id="beatCount" value="3" step="1" min="1" oninput="generateBeats()">
+                        <input type="number" id="beatCount" value="32" step="1" min="1" oninput="generateBeats()">
                     </div>
                 </div>
             </div>
@@ -772,6 +773,7 @@
                 <button class="btn btn-secondary" id="metronomeBtn" onclick="toggleMetronome()">🥁 節拍器: OFF</button>
                 <button class="btn btn-secondary" onclick="shareLink()">🔗 分享連結</button>
                 <button class="btn btn-secondary" onclick="openBeatPreview()">📸 八拍預覽</button>
+                <button class="btn btn-secondary" id="autoDetectBtn" onclick="autoDetectBeats()" style="display:none;">🎵 自動偵測節拍</button>
             </div>
         </div>
 
@@ -878,8 +880,8 @@
         let currentBeatIndex = -1;
         let isLooping = false;
         let currentSpeed = 1;
-        let startTime = 4.6;
-        let endTime = 16.0;
+        let startTime = 6.9;
+        let endTime = 109.0;
         let updateInterval = null;
 
         // ==================== Drag & Drop for sections (desktop + touch) ====================
@@ -1095,6 +1097,7 @@
             const iframe = document.querySelector('#ytPlayer iframe');
             if (iframe) iframe.style.display = 'block';
             document.getElementById('localFileName').textContent = '';
+            document.getElementById('localFileNameWrap').style.display = 'none';
             document.getElementById('autoDetectBtn').style.display = 'none';
         }
 
@@ -1108,6 +1111,7 @@
             localVideo.src = URL.createObjectURL(file);
             localVideo.load();
             document.getElementById('localFileName').textContent = file.name;
+            document.getElementById('localFileNameWrap').style.display = '';
             document.getElementById('autoDetectBtn').style.display = '';
             localVideo.addEventListener('loadedmetadata', function onMeta() {
                 localVideo.removeEventListener('loadedmetadata', onMeta);
@@ -1174,8 +1178,8 @@
         // ==================== Beat range helpers ====================
         function formatTimeMMSS(seconds) {
             const m = Math.floor(seconds / 60);
-            const s = (seconds % 60).toFixed(1);
-            return `${m}:${s.padStart(4, '0')}`;
+            const s = (seconds % 60).toFixed(2);
+            return `${m}:${s.padStart(5, '0')}`;
         }
 
         function parseTimeMMSS(str) {
@@ -1207,7 +1211,7 @@
 
         function captureStartTime() {
             if (!player || !player.getCurrentTime) return;
-            const time = parseFloat(player.getCurrentTime().toFixed(1));
+            const time = parseFloat(player.getCurrentTime().toFixed(2));
             document.getElementById('startTime').value = time;
             updateBeatRangeDisplay();
             generateBeats();
@@ -1215,7 +1219,7 @@
 
         function captureEndTime() {
             if (!player || !player.getCurrentTime) return;
-            const time = parseFloat(player.getCurrentTime().toFixed(1));
+            const time = parseFloat(player.getCurrentTime().toFixed(2));
             document.getElementById('endTime').value = time;
             updateBeatRangeDisplay();
             generateBeats();
@@ -1387,8 +1391,8 @@
                 const suggestedEnd = endIdx < beatTimes.length ? beatTimes[endIdx] : duration;
 
                 // 9. Apply results
-                document.getElementById('startTime').value = suggestedStart.toFixed(1);
-                document.getElementById('endTime').value = suggestedEnd.toFixed(1);
+                document.getElementById('startTime').value = suggestedStart.toFixed(2);
+                document.getElementById('endTime').value = suggestedEnd.toFixed(2);
                 document.getElementById('beatCount').value = Math.max(1, numGroups);
                 updateBeatRangeDisplay();
                 generateBeats();
@@ -1604,7 +1608,7 @@
         function updateLoopStatus() {
             const el = document.getElementById('loopStatus');
             if (isLooping) {
-                el.innerHTML = `循環區間: <span>${startTime.toFixed(1)}s</span> ~ <span>${endTime.toFixed(1)}s</span>`;
+                el.innerHTML = `循環區間: <span>${formatTimeMMSS(startTime)}</span> ~ <span>${formatTimeMMSS(endTime)}</span>`;
             } else {
                 el.innerHTML = '';
             }
@@ -1763,9 +1767,7 @@
                     document.getElementById('progressBar').style.width = (current / duration * 100) + '%';
                 }
 
-                const min = Math.floor(current / 60);
-                const sec = (current % 60).toFixed(1);
-                document.getElementById('currentTimeDisplay').textContent = `${min}:${sec.padStart(4, '0')}`;
+                document.getElementById('currentTimeDisplay').textContent = formatTimeMMSS(current);
 
                 if (beats.length > 0) {
                     updateSliderPositions(current);
