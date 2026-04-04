@@ -719,6 +719,7 @@
                         📁 選擇本機影片
                         <input type="file" id="localFileInput" accept="video/*" style="display:none;" onchange="loadLocalVideo(this)">
                     </label>
+                    <button class="btn btn-secondary" id="autoDetectBtn" onclick="autoDetectBeats()" style="display:none;">🎵 自動偵測節拍</button>
                     <span id="localFileName" style="font-size:0.8rem; color:#888;"></span>
                 </div>
                 <div class="settings-row">
@@ -1094,15 +1095,20 @@
             const iframe = document.querySelector('#ytPlayer iframe');
             if (iframe) iframe.style.display = 'block';
             document.getElementById('localFileName').textContent = '';
+            document.getElementById('autoDetectBtn').style.display = 'none';
         }
+
+        let localFileRef = null;
 
         function loadLocalVideo(input) {
             const file = input.files[0];
             if (!file) return;
+            localFileRef = file;
             switchToLocal();
             localVideo.src = URL.createObjectURL(file);
             localVideo.load();
             document.getElementById('localFileName').textContent = file.name;
+            document.getElementById('autoDetectBtn').style.display = '';
             localVideo.addEventListener('loadedmetadata', function onMeta() {
                 localVideo.removeEventListener('loadedmetadata', onMeta);
                 startUpdateLoop();
@@ -1213,6 +1219,171 @@
             document.getElementById('endTime').value = time;
             updateBeatRangeDisplay();
             generateBeats();
+        }
+
+        // ==================== Auto Beat Detection ====================
+        async function autoDetectBeats() {
+            if (!localFileRef) {
+                alert('請先選擇本機影片');
+                return;
+            }
+
+            const btn = document.getElementById('autoDetectBtn');
+            const origText = btn.textContent;
+            btn.textContent = '🎵 分析中...';
+            btn.disabled = true;
+
+            try {
+                // 1. Decode audio from file
+                const arrayBuffer = await localFileRef.arrayBuffer();
+                const actx = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await actx.decodeAudioData(arrayBuffer);
+
+                // 2. Mix down to mono and get sample data
+                const sampleRate = audioBuffer.sampleRate;
+                const length = audioBuffer.length;
+                const mono = new Float32Array(length);
+                for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+                    const channelData = audioBuffer.getChannelData(ch);
+                    for (let i = 0; i < length; i++) {
+                        mono[i] += channelData[i];
+                    }
+                }
+                const numCh = audioBuffer.numberOfChannels;
+                for (let i = 0; i < length; i++) mono[i] /= numCh;
+
+                // 3. Compute onset strength function (energy envelope)
+                const hopSize = Math.round(sampleRate * 0.01); // 10ms hops
+                const windowSize = Math.round(sampleRate * 0.04); // 40ms window
+                const numFrames = Math.floor((length - windowSize) / hopSize);
+                const energy = new Float32Array(numFrames);
+
+                for (let f = 0; f < numFrames; f++) {
+                    const start = f * hopSize;
+                    let sum = 0;
+                    for (let i = start; i < start + windowSize; i++) {
+                        sum += mono[i] * mono[i];
+                    }
+                    energy[f] = sum / windowSize;
+                }
+
+                // 4. Spectral flux (difference of energy)
+                const flux = new Float32Array(numFrames);
+                for (let f = 1; f < numFrames; f++) {
+                    flux[f] = Math.max(0, energy[f] - energy[f - 1]);
+                }
+
+                // 5. Normalize flux
+                let maxFlux = 0;
+                for (let f = 0; f < numFrames; f++) {
+                    if (flux[f] > maxFlux) maxFlux = flux[f];
+                }
+                if (maxFlux > 0) {
+                    for (let f = 0; f < numFrames; f++) flux[f] /= maxFlux;
+                }
+
+                // 6. Autocorrelation to find tempo
+                // Search BPM range 60-200
+                const minLag = Math.round(60 / (200 / 60) / 0.01); // ~18 frames at 200 BPM
+                const maxLag = Math.round(60 / (60 / 60) / 0.01);  // ~100 frames at 60 BPM
+                const acLen = Math.min(numFrames, maxLag * 4);
+                const ac = new Float32Array(maxLag + 1);
+
+                for (let lag = minLag; lag <= maxLag && lag < acLen; lag++) {
+                    let sum = 0;
+                    const count = Math.min(acLen - lag, numFrames - lag);
+                    for (let i = 0; i < count; i++) {
+                        sum += flux[i] * flux[i + lag];
+                    }
+                    ac[lag] = sum / count;
+                }
+
+                // Find peak lag (and check half/double for octave errors)
+                let bestLag = minLag;
+                let bestVal = 0;
+                for (let lag = minLag; lag <= maxLag; lag++) {
+                    if (ac[lag] > bestVal) {
+                        bestVal = ac[lag];
+                        bestLag = lag;
+                    }
+                }
+
+                // Check if double-tempo is also strong (octave error correction)
+                const halfLag = Math.round(bestLag / 2);
+                if (halfLag >= minLag && ac[halfLag] > bestVal * 0.8) {
+                    bestLag = halfLag;
+                }
+
+                const detectedBpm = 60 / (bestLag * 0.01);
+
+                // 7. Find beat phase (where beats land)
+                const beatInterval = bestLag; // in frames
+                let bestPhase = 0;
+                let bestPhaseScore = 0;
+                for (let phase = 0; phase < beatInterval; phase++) {
+                    let score = 0;
+                    for (let pos = phase; pos < numFrames; pos += beatInterval) {
+                        score += flux[pos];
+                    }
+                    if (score > bestPhaseScore) {
+                        bestPhaseScore = score;
+                        bestPhase = phase;
+                    }
+                }
+
+                // 8. Generate beat times
+                const beatTimes = [];
+                for (let pos = bestPhase; pos < numFrames; pos += beatInterval) {
+                    beatTimes.push(pos * 0.01); // convert frames to seconds
+                }
+
+                // 9. Find the best 8-beat aligned segment near current playback position
+                const currentPos = player ? player.getCurrentTime() : 0;
+                const duration = player ? player.getDuration() : audioBuffer.duration;
+
+                // Count how many 8-counts fit
+                const eightCountDuration = 8 * (60 / detectedBpm);
+                const totalEightCounts = Math.floor(duration / eightCountDuration);
+
+                // Find nearest beat to current position for start
+                let nearestBeatIdx = 0;
+                let minDist = Infinity;
+                for (let i = 0; i < beatTimes.length; i++) {
+                    const dist = Math.abs(beatTimes[i] - currentPos);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestBeatIdx = i;
+                    }
+                }
+
+                // Align to 8-beat boundary
+                const alignedIdx = nearestBeatIdx - (nearestBeatIdx % 8);
+                const suggestedStart = beatTimes[alignedIdx] || beatTimes[0] || 0;
+
+                // Default: suggest 3 eight-counts from start
+                const numGroups = Math.min(3, Math.floor((beatTimes.length - alignedIdx) / 8));
+                const endIdx = alignedIdx + numGroups * 8;
+                const suggestedEnd = endIdx < beatTimes.length ? beatTimes[endIdx] : duration;
+
+                // 10. Apply results
+                document.getElementById('startTime').value = suggestedStart.toFixed(1);
+                document.getElementById('endTime').value = suggestedEnd.toFixed(1);
+                document.getElementById('beatCount').value = Math.max(1, numGroups);
+                updateBeatRangeDisplay();
+                generateBeats();
+
+                actx.close();
+
+                // Show result
+                btn.textContent = `🎵 BPM: ${Math.round(detectedBpm)}`;
+                setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+
+            } catch (err) {
+                console.error('Beat detection failed:', err);
+                btn.textContent = origText;
+                btn.disabled = false;
+                alert('節拍偵測失敗：' + err.message);
+            }
         }
 
         // ==================== Beat generation ====================
