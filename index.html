@@ -1576,12 +1576,14 @@
             track.appendChild(thumb);
 
             // Click/drag to seek within current 8-count
-            // Display maps beatPos → pct: pct = (beatPos + 1) / beatsPerGroup * 100
-            // So seek maps pct → beatPos: beatPos = ratio * beatsPerGroup - 1
+            // Display: displayPos = (beatPos+1), wraps if >8 → pct = displayPos/8*100
+            // Reverse: displayPos = ratio * 8, beatPos = displayPos - 1
+            // Zone 0%~12.5% (displayPos 0~1) → beatPos -1~0 → wraps to 7~8 (beat 8 zone)
             function seekFromEvent(e) {
                 const rect = track.getBoundingClientRect();
                 const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                const beatPos = ratio * beatsPerGroup - 1;
+                let beatPos = ratio * beatsPerGroup - 1;
+                if (beatPos < 0) beatPos += beatsPerGroup; // wrap: left "8" zone → beat 7~8
                 const clampedPos = Math.max(0, Math.min(beatsPerGroup - 0.01, beatPos));
                 const groupIdx = currentBeatIndex >= 0 ? beats[currentBeatIndex].groupIndex : 0;
                 const groupStart = startTime + groupIdx * beatsPerGroup * beatInterval;
@@ -1639,12 +1641,15 @@
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
             const groupDuration = beatsPerGroup * beatInterval;
 
-            // beatPos: 0 at beat 1, 7 at beat 8
+            // beatPos: 0 at beat 1, 7 at beat 8, 7.x after beat 8 before next group
             const elapsed = currentTime - startTime;
-            const beatPos = groupDuration > 0 ? (elapsed % groupDuration) / beatInterval : 0;
-            // Ticks: 8,1,2,...,8 at 0/8, 1/8, ..., 8/8
-            // Beat 1 (beatPos=0) → tick "1" at 1/8, Beat 8 (beatPos=7) → tick "8" at 8/8
-            const pct = ((beatPos + 1) / beatsPerGroup) * 100;
+            const beatPos = groupDuration > 0 ? (((elapsed % groupDuration) + groupDuration) % groupDuration) / beatInterval : 0;
+            // Ticks: 8,1,2,...,8 at 0%, 12.5%, ..., 100%
+            // Beat 1 (beatPos=0) → 12.5%, Beat 8 (beatPos=7) → 100%
+            // After beat 8 (beatPos>7): wrap to 0%→12.5% zone
+            let displayPos = beatPos + 1;
+            if (displayPos > beatsPerGroup) displayPos -= beatsPerGroup;
+            const pct = (displayPos / beatsPerGroup) * 100;
             const clamped = Math.max(0, Math.min(100, pct));
 
             const fill = document.getElementById('beatSliderFill');
