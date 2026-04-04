@@ -142,8 +142,16 @@
             text-shadow: 0 3px 12px rgba(0,0,0,0.7);
         }
 
+        .beat-watermark-big .wm-decimal {
+            font-size: 2rem;
+        }
+
         .fullscreen-mode .beat-watermark-big {
             font-size: 8rem;
+        }
+
+        .fullscreen-mode .beat-watermark-big .wm-decimal {
+            font-size: 2.67rem;
         }
 
         .beat-watermark-sub {
@@ -2032,12 +2040,17 @@
                 if (current >= beats[i].time) { idx = i; break; }
             }
             if (idx < 0) {
-                numEl.textContent = '-';
+                numEl.innerHTML = '-';
                 subEl.textContent = '';
                 return;
             }
             const beat = beats[idx];
-            numEl.textContent = beat.beatNumber;
+            const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 1;
+            // Fractional progress within current beat (0.0 ~ 0.9)
+            const elapsed = current - beats[idx].time;
+            const frac = Math.min(9, Math.floor((elapsed / beatInterval) * 10));
+            // beatNumber: 1~8, display range: 1.0 ~ 8.9
+            numEl.innerHTML = `${beat.beatNumber}<span class="wm-decimal">.${frac}</span>`;
             subEl.textContent = `第 ${beat.groupIndex + 1} 個八拍`;
         }
 
