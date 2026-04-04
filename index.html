@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -105,6 +105,7 @@
             right: 0;
             background: linear-gradient(transparent, rgba(0,0,0,0.85));
             padding: 15px 20px;
+            padding-bottom: calc(15px + env(safe-area-inset-bottom, 20px));
             display: flex;
             align-items: center;
             justify-content: center;
@@ -129,7 +130,7 @@
 
         .fullscreen-mode .beat-watermark {
             z-index: 10001;
-            bottom: 80px;
+            bottom: calc(80px + env(safe-area-inset-bottom, 20px));
             right: 40px;
         }
 
@@ -151,44 +152,6 @@
             text-shadow: 0 1px 4px rgba(0,0,0,0.7);
         }
 
-        .beat-offset-controls {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            pointer-events: auto;
-            margin-top: 4px;
-            justify-content: flex-end;
-        }
-
-        .beat-offset-controls input {
-            width: 60px;
-            text-align: center;
-            background: rgba(15,52,96,0.8);
-            border: 1px solid #444;
-            color: #eee;
-            border-radius: 4px;
-            padding: 2px 4px;
-            font-size: 0.75rem;
-        }
-
-        .beat-offset-controls button {
-            background: rgba(15,52,96,0.8);
-            border: 1px solid #444;
-            color: #ccc;
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 0.75rem;
-            cursor: pointer;
-        }
-
-        .beat-offset-controls button:active {
-            background: #e94560;
-        }
-
-        .beat-offset-controls span {
-            font-size: 0.7rem;
-            color: #888;
-        }
 
         /* Video Section */
         .video-wrapper {
@@ -552,16 +515,13 @@
             font-weight: bold;
         }
 
-        .loop-status {
-            text-align: center;
-            font-size: 0.9rem;
-            color: #aaa;
+        .capture-btn {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            flex-shrink: 0;
         }
 
-        .loop-status span {
-            color: #e94560;
-            font-weight: bold;
-        }
+
 
         /* Progress bar */
         .progress-bar-container {
@@ -695,6 +655,11 @@
                 font-size: 0.55rem;
             }
 
+            .capture-btn {
+                padding: 4px 6px;
+                font-size: 0.7rem;
+            }
+
             .url-row {
                 flex-direction: column;
             }
@@ -731,12 +696,6 @@
                 <div class="beat-watermark" id="beatWatermark" style="display:none;">
                     <div class="beat-watermark-big" id="wmBeatNum">-</div>
                     <div class="beat-watermark-sub" id="wmBeatSub"></div>
-                    <div class="beat-offset-controls">
-                        <button onclick="adjustBeatOffset(-0.01)">-</button>
-                        <input type="text" id="beatOffsetInput" value="0.00" onchange="setBeatOffsetFromInput()">
-                        <span>s</span>
-                        <button onclick="adjustBeatOffset(0.01)">+</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -753,10 +712,9 @@
 
                 <div class="controls-row">
                     <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
-                    <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">循環: OFF</button>
-                    <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
-                    <button class="btn btn-secondary" id="watermarkBtn" onclick="toggleWatermark()">🔢 數拍: OFF</button>
-                    <button class="btn btn-secondary" onclick="toggleFullscreen()">📺 全螢幕</button>
+                    <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">鏡像: OFF</button>
+                    <button class="btn btn-secondary" id="watermarkBtn" onclick="toggleWatermark()">數拍: OFF</button>
+                    <button class="btn btn-secondary" onclick="toggleFullscreen()">全螢幕</button>
                 </div>
 
                 <div class="speed-slider-wrap">
@@ -766,7 +724,6 @@
                     </div>
                 </div>
 
-                <div class="loop-status" id="loopStatus"></div>
             </div>
         </div>
 
@@ -795,10 +752,10 @@
                                 <span class="tooltip">開始：第 1 個八拍的第 1 拍瞬間<br>結束：最後八拍結束後，假想的「下一拍」瞬間</span>
                             </span>
                         </label>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <button class="btn btn-secondary" onclick="captureStartTime()" style="padding:4px 8px; font-size:0.8rem;" title="擷取開始時間">▶|</button>
-                            <input type="text" id="beatRange" value="0:06.90 ~ 1:49.00" oninput="parseBeatRange()" style="text-align:center; flex:1;">
-                            <button class="btn btn-secondary" onclick="captureEndTime()" style="padding:4px 8px; font-size:0.8rem;" title="擷取結束時間">|◀</button>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <button class="btn btn-secondary capture-btn" onclick="captureStartTime()" title="擷取開始時間">▶|</button>
+                            <input type="text" id="beatRange" value="0:06.90 ~ 1:49.00" oninput="parseBeatRange()" style="text-align:center; flex:1; min-width:0;">
+                            <button class="btn btn-secondary capture-btn" onclick="captureEndTime()" title="擷取結束時間">|◀</button>
                         </div>
                         <input type="hidden" id="startTime" value="6.9">
                         <input type="hidden" id="endTime" value="109.0">
@@ -806,6 +763,38 @@
                     <div class="field">
                         <label>八拍組數</label>
                         <input type="number" id="beatCount" value="32" step="1" min="1" oninput="generateBeats()">
+                    </div>
+                </div>
+                <div class="settings-row" style="margin-top:10px;">
+                    <div class="field" style="flex:2;">
+                        <label>
+                            循環範圍
+                            <span class="info-icon">?
+                                <span class="tooltip">可獨立設定循環的起迄時間，<br>不影響數拍範圍</span>
+                            </span>
+                        </label>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <button class="btn btn-secondary capture-btn" onclick="captureLoopStart()" title="擷取循環起點">▶|</button>
+                            <input type="text" id="loopRange" value="0:06.90 ~ 1:49.00" oninput="parseLoopRange()" style="text-align:center; flex:1; min-width:0;">
+                            <button class="btn btn-secondary capture-btn" onclick="captureLoopEnd()" title="擷取循環終點">|◀</button>
+                        </div>
+                        <input type="hidden" id="loopStartTime" value="6.9">
+                        <input type="hidden" id="loopEndTime" value="109.0">
+                    </div>
+                    <div class="field">
+                        <label>循環</label>
+                        <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()" style="width:100%;">OFF</button>
+                    </div>
+                </div>
+                <div class="settings-row" style="margin-top:10px;">
+                    <div class="field">
+                        <label>數拍浮水印偏移</label>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <button class="btn btn-secondary capture-btn" onclick="adjustBeatOffset(-0.01)">-</button>
+                            <input type="text" id="beatOffsetInput" value="0.00" onchange="setBeatOffsetFromInput()" style="text-align:center; flex:1; min-width:0;">
+                            <span style="font-size:0.8rem; color:#888;">s</span>
+                            <button class="btn btn-secondary capture-btn" onclick="adjustBeatOffset(0.01)">+</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1651,21 +1640,46 @@
             }
         }
 
+        let loopStartTime = 6.9;
+        let loopEndTime = 109.0;
+
         function toggleLoop() {
             isLooping = !isLooping;
             const btn = document.getElementById('loopBtn');
-            btn.textContent = `循環: ${isLooping ? 'ON' : 'OFF'}`;
+            btn.textContent = isLooping ? 'ON' : 'OFF';
             btn.classList.toggle('btn-active', isLooping);
-            updateLoopStatus();
         }
 
-        function updateLoopStatus() {
-            const el = document.getElementById('loopStatus');
-            if (isLooping) {
-                el.innerHTML = `循環區間: <span>${formatTimeMMSS(startTime)}</span> ~ <span>${formatTimeMMSS(endTime)}</span>`;
-            } else {
-                el.innerHTML = '';
-            }
+        function updateLoopRangeDisplay() {
+            const s = parseFloat(document.getElementById('loopStartTime').value) || 0;
+            const e = parseFloat(document.getElementById('loopEndTime').value) || 0;
+            document.getElementById('loopRange').value = `${formatTimeMMSS(s)} ~ ${formatTimeMMSS(e)}`;
+        }
+
+        function parseLoopRange() {
+            const val = document.getElementById('loopRange').value;
+            const parts = val.split('~');
+            if (parts.length !== 2) return;
+            const s = parseTimeMMSS(parts[0]);
+            const e = parseTimeMMSS(parts[1]);
+            if (!isNaN(s)) { document.getElementById('loopStartTime').value = s; loopStartTime = s; }
+            if (!isNaN(e)) { document.getElementById('loopEndTime').value = e; loopEndTime = e; }
+        }
+
+        function captureLoopStart() {
+            if (!player || !player.getCurrentTime) return;
+            const time = parseFloat(player.getCurrentTime().toFixed(2));
+            document.getElementById('loopStartTime').value = time;
+            loopStartTime = time;
+            updateLoopRangeDisplay();
+        }
+
+        function captureLoopEnd() {
+            if (!player || !player.getCurrentTime) return;
+            const time = parseFloat(player.getCurrentTime().toFixed(2));
+            document.getElementById('loopEndTime').value = time;
+            loopEndTime = time;
+            updateLoopRangeDisplay();
         }
 
         function jumpToStart() {
@@ -1841,10 +1855,8 @@
                     updateBeatWatermark();
                 }
 
-                if (isLooping && current >= endTime) {
-                    player.seekTo(startTime, true);
-                    currentBeatIndex = 0;
-                    if (beats.length > 0) highlightBeat(0);
+                if (isLooping && current >= loopEndTime) {
+                    player.seekTo(loopStartTime, true);
                 }
             }, 50);
         }
@@ -1864,7 +1876,7 @@
         function toggleMirror() {
             isMirrored = !isMirrored;
             document.querySelector('.video-wrapper').classList.toggle('mirrored', isMirrored);
-            document.getElementById('mirrorBtn').textContent = `🪞 鏡像: ${isMirrored ? 'ON' : 'OFF'}`;
+            document.getElementById('mirrorBtn').textContent = `鏡像: ${isMirrored ? 'ON' : 'OFF'}`;
             document.getElementById('mirrorBtn').classList.toggle('btn-active', isMirrored);
         }
 
@@ -1960,7 +1972,7 @@
         function toggleWatermark() {
             isWatermarkOn = !isWatermarkOn;
             document.getElementById('beatWatermark').style.display = isWatermarkOn ? '' : 'none';
-            document.getElementById('watermarkBtn').textContent = `🔢 數拍: ${isWatermarkOn ? 'ON' : 'OFF'}`;
+            document.getElementById('watermarkBtn').textContent = `數拍: ${isWatermarkOn ? 'ON' : 'OFF'}`;
             document.getElementById('watermarkBtn').classList.toggle('btn-active', isWatermarkOn);
         }
 
@@ -2119,11 +2131,12 @@
             const sp = params.get('sp');
 
             if (v) document.getElementById('videoUrl').value = v;
-            if (s) document.getElementById('startTime').value = s;
-            if (e) document.getElementById('endTime').value = e;
+            if (s) { document.getElementById('startTime').value = s; document.getElementById('loopStartTime').value = s; loopStartTime = parseFloat(s); }
+            if (e) { document.getElementById('endTime').value = e; document.getElementById('loopEndTime').value = e; loopEndTime = parseFloat(e); }
             if (c) document.getElementById('beatCount').value = c;
             if (sp) currentSpeed = parseFloat(sp);
             updateBeatRangeDisplay();
+            updateLoopRangeDisplay();
             return true;
         }
 
