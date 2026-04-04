@@ -1514,7 +1514,7 @@
             }
         }
 
-        // Render a single 8-beat slider with 0.5-beat padding on each side
+        // Render a single 8-beat slider: labels 8,1,2,3,4,5,6,7,8
         function renderBeats() {
             const container = document.getElementById('beatsContainer');
             container.innerHTML = '';
@@ -1523,10 +1523,10 @@
 
             const beatsPerGroup = Math.min(8, beats.length);
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
-            // Total range: 0.5 beat padding on each side → 9 beat-widths total
-            const totalSlots = beatsPerGroup + 1; // 9 for 8 beats
+            // 9 ticks: [8], 1, 2, 3, 4, 5, 6, 7, 8 → spans beatsPerGroup intervals
+            const numTicks = beatsPerGroup + 1; // 9
+            const tickLabels = [8, 1, 2, 3, 4, 5, 6, 7, 8];
 
-            // Single track representing one 8-count cycle
             const track = document.createElement('div');
             track.className = 'beat-slider-track';
             track.id = 'beatSliderTrack';
@@ -1536,19 +1536,20 @@
             fill.id = 'beatSliderFill';
             track.appendChild(fill);
 
-            // Tick marks for beats 1-8 (offset by 0.5 beat from left edge)
-            for (let i = 0; i < beatsPerGroup; i++) {
-                const pct = ((i + 0.5) / totalSlots) * 100;
+            // Tick marks: 8,1,2,3,4,5,6,7,8
+            for (let i = 0; i < numTicks; i++) {
+                const pct = (i / (numTicks - 1)) * 100;
 
                 const tick = document.createElement('div');
-                tick.className = 'beat-tick' + (i === 0 ? ' first-of-group' : '');
+                tick.className = 'beat-tick' + (i === 1 ? ' first-of-group' : '');
                 tick.style.left = pct + '%';
                 track.appendChild(tick);
 
                 const tickLabel = document.createElement('div');
                 tickLabel.className = 'beat-tick-label';
+                // tick-label-0 = the leading "8", tick-label-1..8 = beats 1..8
                 tickLabel.id = `tick-label-${i}`;
-                tickLabel.textContent = i + 1;
+                tickLabel.textContent = tickLabels[i];
                 tickLabel.style.left = pct + '%';
                 track.appendChild(tickLabel);
             }
@@ -1563,8 +1564,9 @@
             function seekFromEvent(e) {
                 const rect = track.getBoundingClientRect();
                 const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                // Map slider ratio back to time: ratio covers -0.5 to 8.5 beats
-                const beatPos = ratio * totalSlots - 0.5; // -0.5 to 8.5
+                // ratio 0→1 maps to beat position -1 to beatsPerGroup-1 (i.e. "8" to "8")
+                // but actual group range is beat 0..beatsPerGroup
+                const beatPos = ratio * beatsPerGroup;
                 const clampedPos = Math.max(0, Math.min(beatsPerGroup, beatPos));
                 const groupIdx = currentBeatIndex >= 0 ? beats[currentBeatIndex].groupIndex : 0;
                 const groupStart = startTime + groupIdx * beatsPerGroup * beatInterval;
@@ -1604,10 +1606,16 @@
 
         function highlightBeat(index) {
             if (beats.length === 0 || index < 0) return;
-            const beatNum = beats[index].beatNumber - 1; // 0-based
+            const beatNum = beats[index].beatNumber; // 1-based
             document.querySelectorAll('.beat-tick-label').forEach(el => el.classList.remove('active'));
+            // tick-label-1 through tick-label-8 correspond to beats 1-8
             const tickLabel = document.getElementById(`tick-label-${beatNum}`);
             if (tickLabel) tickLabel.classList.add('active');
+            // Also highlight leading "8" when on beat 8
+            if (beatNum === 8) {
+                const leading = document.getElementById('tick-label-0');
+                if (leading) leading.classList.add('active');
+            }
         }
 
         function updateSliderPositions(currentTime) {
@@ -1615,13 +1623,13 @@
             const beatsPerGroup = Math.min(8, beats.length);
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
             const groupDuration = beatsPerGroup * beatInterval;
-            const totalSlots = beatsPerGroup + 1; // 9 for 8 beats
 
-            // Find position within current group (in beats: 0 to beatsPerGroup)
+            // beatPos: 0 to beatsPerGroup within group
             const elapsed = currentTime - startTime;
             const beatPos = groupDuration > 0 ? (elapsed % groupDuration) / beatInterval : 0;
-            // Map beat position to slider percentage with 0.5 padding
-            const pct = ((beatPos + 0.5) / totalSlots) * 100;
+            // Slider: 0% = leading "8", 100% = trailing "8"
+            // beatPos 0 (beat 1) → tick index 1 of 8 intervals → 1/8 = 12.5%
+            const pct = (beatPos / beatsPerGroup) * 100;
             const clamped = Math.max(0, Math.min(100, pct));
 
             const fill = document.getElementById('beatSliderFill');
