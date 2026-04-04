@@ -117,25 +117,77 @@
             padding: 6px 14px;
         }
 
-        .fullscreen-beat-display {
+        .beat-watermark {
             position: absolute;
-            top: 15px;
-            right: 20px;
-            z-index: 10001;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
             text-align: right;
+            pointer-events: none;
+            opacity: 0.85;
         }
 
-        .fullscreen-beat-big {
-            font-size: 4rem;
+        .fullscreen-mode .beat-watermark {
+            z-index: 10001;
+            bottom: 80px;
+            right: 40px;
+        }
+
+        .beat-watermark-big {
+            font-size: 3rem;
             font-weight: bold;
             color: #e94560;
             line-height: 1;
-            text-shadow: 0 0 20px rgba(233,69,96,0.5);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.7);
         }
 
-        .fullscreen-beat-sub {
-            font-size: 1rem;
-            color: #aaa;
+        .fullscreen-mode .beat-watermark-big {
+            font-size: 4rem;
+        }
+
+        .beat-watermark-sub {
+            font-size: 0.85rem;
+            color: #ccc;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+        }
+
+        .beat-offset-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            pointer-events: auto;
+            margin-top: 4px;
+            justify-content: flex-end;
+        }
+
+        .beat-offset-controls input {
+            width: 60px;
+            text-align: center;
+            background: rgba(15,52,96,0.8);
+            border: 1px solid #444;
+            color: #eee;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-size: 0.75rem;
+        }
+
+        .beat-offset-controls button {
+            background: rgba(15,52,96,0.8);
+            border: 1px solid #444;
+            color: #ccc;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .beat-offset-controls button:active {
+            background: #e94560;
+        }
+
+        .beat-offset-controls span {
+            font-size: 0.7rem;
+            color: #888;
         }
 
         /* Video Section */
@@ -676,6 +728,16 @@
             <div class="video-wrapper" id="videoWrapper">
                 <div id="ytPlayer"></div>
                 <video id="localPlayer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000;" playsinline></video>
+                <div class="beat-watermark" id="beatWatermark" style="display:none;">
+                    <div class="beat-watermark-big" id="wmBeatNum">-</div>
+                    <div class="beat-watermark-sub" id="wmBeatSub"></div>
+                    <div class="beat-offset-controls">
+                        <button onclick="adjustBeatOffset(-0.01)">-</button>
+                        <input type="text" id="beatOffsetInput" value="0.00" onchange="setBeatOffsetFromInput()">
+                        <span>s</span>
+                        <button onclick="adjustBeatOffset(0.01)">+</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -692,6 +754,8 @@
                 <div class="controls-row">
                     <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">▶ 播放</button>
                     <button class="btn btn-secondary" id="loopBtn" onclick="toggleLoop()">循環: OFF</button>
+                    <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
+                    <button class="btn btn-secondary" id="watermarkBtn" onclick="toggleWatermark()">🔢 數拍: OFF</button>
                     <button class="btn btn-secondary" onclick="toggleFullscreen()">📺 全螢幕</button>
                 </div>
 
@@ -747,21 +811,6 @@
             </div>
         </div>
 
-        <!-- Config Export/Import -->
-        <div class="draggable-section" data-section="config">
-            <div class="panel">
-                <h2><span class="drag-handle"><span class="drag-icon">⠿</span> 💾 匯出 / 匯入設定</span></h2>
-                <p style="font-size:0.8rem; color:#888; margin-bottom:10px;">複製下方文字保存，下次貼回即可還原設定</p>
-                <div style="display:flex; gap:10px;">
-                    <textarea id="configText" rows="4" style="flex:1; background:#0f3460; border:1px solid #333; color:#eee; padding:10px; border-radius:8px; font-size:0.85rem; font-family:monospace; resize:vertical;" placeholder="點擊「匯出」產生設定字串，或貼上之前的設定後按「匯入」"></textarea>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <button class="btn btn-primary" onclick="exportConfig()">匯出</button>
-                        <button class="btn btn-secondary" onclick="importConfig()">匯入</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Beta Features -->
         <div class="panel" style="margin-bottom:20px; border: 1px solid #e9456044;">
             <h2 style="display:flex; align-items:center; gap:8px;">
@@ -769,7 +818,6 @@
                 <span style="font-size:0.65rem; background:#e94560; color:#fff; padding:2px 8px; border-radius:4px;">BETA</span>
             </h2>
             <div class="controls-row" style="justify-content:flex-start; margin-bottom:0;">
-                <button class="btn btn-secondary" id="mirrorBtn" onclick="toggleMirror()">🪞 鏡像: OFF</button>
                 <button class="btn btn-secondary" id="metronomeBtn" onclick="toggleMetronome()">🥁 節拍器: OFF</button>
                 <button class="btn btn-secondary" onclick="shareLink()">🔗 分享連結</button>
                 <button class="btn btn-secondary" onclick="openBeatPreview()">📸 八拍預覽</button>
@@ -1477,7 +1525,7 @@
             }
         }
 
-        // Render a single 8-beat slider (not per-group)
+        // Render a single 8-beat slider with 0.5-beat padding on each side
         function renderBeats() {
             const container = document.getElementById('beatsContainer');
             container.innerHTML = '';
@@ -1486,6 +1534,8 @@
 
             const beatsPerGroup = Math.min(8, beats.length);
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
+            // Total range: 0.5 beat padding on each side → 9 beat-widths total
+            const totalSlots = beatsPerGroup + 1; // 9 for 8 beats
 
             // Single track representing one 8-count cycle
             const track = document.createElement('div');
@@ -1497,9 +1547,9 @@
             fill.id = 'beatSliderFill';
             track.appendChild(fill);
 
-            // Tick marks for beats 1-8
+            // Tick marks for beats 1-8 (offset by 0.5 beat from left edge)
             for (let i = 0; i < beatsPerGroup; i++) {
-                const pct = (i / beatsPerGroup) * 100;
+                const pct = ((i + 0.5) / totalSlots) * 100;
 
                 const tick = document.createElement('div');
                 tick.className = 'beat-tick' + (i === 0 ? ' first-of-group' : '');
@@ -1524,11 +1574,12 @@
             function seekFromEvent(e) {
                 const rect = track.getBoundingClientRect();
                 const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                // Seek within the current group
+                // Map slider ratio back to time: ratio covers -0.5 to 8.5 beats
+                const beatPos = ratio * totalSlots - 0.5; // -0.5 to 8.5
+                const clampedPos = Math.max(0, Math.min(beatsPerGroup, beatPos));
                 const groupIdx = currentBeatIndex >= 0 ? beats[currentBeatIndex].groupIndex : 0;
                 const groupStart = startTime + groupIdx * beatsPerGroup * beatInterval;
-                const groupDuration = beatsPerGroup * beatInterval;
-                const time = groupStart + ratio * groupDuration;
+                const time = groupStart + clampedPos * beatInterval;
                 if (player) player.seekTo(time, true);
             }
 
@@ -1575,16 +1626,19 @@
             const beatsPerGroup = Math.min(8, beats.length);
             const beatInterval = beats.length > 1 ? beats[1].time - beats[0].time : 0;
             const groupDuration = beatsPerGroup * beatInterval;
+            const totalSlots = beatsPerGroup + 1; // 9 for 8 beats
 
-            // Find which group we're in
+            // Find position within current group (in beats: 0 to beatsPerGroup)
             const elapsed = currentTime - startTime;
-            const posInGroup = groupDuration > 0 ? ((elapsed % groupDuration) / groupDuration) * 100 : 0;
-            const pct = Math.max(0, Math.min(100, posInGroup));
+            const beatPos = groupDuration > 0 ? (elapsed % groupDuration) / beatInterval : 0;
+            // Map beat position to slider percentage with 0.5 padding
+            const pct = ((beatPos + 0.5) / totalSlots) * 100;
+            const clamped = Math.max(0, Math.min(100, pct));
 
             const fill = document.getElementById('beatSliderFill');
             const thumb = document.getElementById('beatSliderThumb');
-            if (fill) fill.style.width = pct + '%';
-            if (thumb) thumb.style.left = pct + '%';
+            if (fill) fill.style.width = clamped + '%';
+            if (thumb) thumb.style.left = clamped + '%';
         }
 
         function togglePlay() {
@@ -1783,8 +1837,8 @@
                         currentBeatIndex = closestIndex;
                         highlightBeat(closestIndex);
                         checkMetronome();
-                        updateFullscreenBeatDisplay();
                     }
+                    updateBeatWatermark();
                 }
 
                 if (isLooping && current >= endTime) {
@@ -1804,65 +1858,6 @@
                 player.seekTo(ratio * duration, true);
             }
         });
-
-        // ==================== Config export/import (human-readable) ====================
-        function exportConfig() {
-            const url = document.getElementById('videoUrl').value;
-            const start = parseFloat(document.getElementById('startTime').value);
-            const end = parseFloat(document.getElementById('endTime').value);
-            const count = parseInt(document.getElementById('beatCount').value);
-
-            const lines = [
-                `影片: ${url}`,
-                `範圍: ${formatTimeMMSS(start)} ~ ${formatTimeMMSS(end)}`,
-                `拍數: ${count} 組八拍`,
-                `速度: ${currentSpeed}x`
-            ];
-            document.getElementById('configText').value = lines.join('\n');
-            document.getElementById('configText').select();
-        }
-
-        function importConfig() {
-            try {
-                const text = document.getElementById('configText').value.trim();
-                const lines = text.split('\n');
-                const config = {};
-
-                for (const line of lines) {
-                    const [key, ...rest] = line.split(':');
-                    const value = rest.join(':').trim();
-                    const k = key.trim();
-                    if (k === '影片') config.url = value;
-                    else if (k === '開始') config.start = parseFloat(value);
-                    else if (k === '結束') config.end = parseFloat(value);
-                    else if (k === '範圍') {
-                        const rParts = value.split('~');
-                        if (rParts.length === 2) {
-                            config.start = parseTimeMMSS(rParts[0]);
-                            config.end = parseTimeMMSS(rParts[1]);
-                        }
-                    }
-                    else if (k === '拍數') {
-                        const match = value.match(/^(\d+)\s*組/);
-                        if (match) {
-                            config.count = parseInt(match[1]);
-                        }
-                    }
-                    else if (k === '速度') config.speed = parseFloat(value);
-                }
-
-                if (config.url) document.getElementById('videoUrl').value = config.url;
-                if (config.start != null) document.getElementById('startTime').value = config.start;
-                if (config.end != null) document.getElementById('endTime').value = config.end;
-                if (config.count != null) document.getElementById('beatCount').value = config.count;
-                if (config.speed) setSpeed(config.speed);
-                updateBeatRangeDisplay();
-                loadVideo();
-                generateBeats();
-            } catch (e) {
-                alert('設定格式錯誤，請確認貼上的內容是否正確');
-            }
-        }
 
         // ==================== Beta: Mirror ====================
         let isMirrored = false;
@@ -1930,16 +1925,9 @@
             fullscreenContainer.className = 'fullscreen-mode';
             fullscreenContainer.id = 'fullscreenContainer';
 
-            // Move video into fullscreen container
+            // Move video into fullscreen container (watermark travels with it)
             const wrapper = videoSection.querySelector('.video-wrapper');
             fullscreenContainer.appendChild(wrapper);
-
-            // Beat display overlay
-            const beatDisplay = document.createElement('div');
-            beatDisplay.className = 'fullscreen-beat-display';
-            beatDisplay.id = 'fullscreenBeatDisplay';
-            beatDisplay.innerHTML = '<div class="fullscreen-beat-big" id="fsBeatNum">-</div><div class="fullscreen-beat-sub" id="fsBeatSub"></div>';
-            fullscreenContainer.appendChild(beatDisplay);
 
             // Bottom controls overlay
             const overlay = document.createElement('div');
@@ -1966,13 +1954,47 @@
             document.body.style.overflow = '';
         }
 
-        function updateFullscreenBeatDisplay() {
-            if (!isFullscreen || beats.length === 0 || currentBeatIndex < 0) return;
-            const beat = beats[currentBeatIndex];
-            const numEl = document.getElementById('fsBeatNum');
-            const subEl = document.getElementById('fsBeatSub');
-            if (numEl) numEl.textContent = beat.beatNumber;
-            if (subEl) subEl.textContent = `第 ${beat.groupIndex + 1} 個八拍`;
+        let isWatermarkOn = false;
+        let beatOffset = 0;
+
+        function toggleWatermark() {
+            isWatermarkOn = !isWatermarkOn;
+            document.getElementById('beatWatermark').style.display = isWatermarkOn ? '' : 'none';
+            document.getElementById('watermarkBtn').textContent = `🔢 數拍: ${isWatermarkOn ? 'ON' : 'OFF'}`;
+            document.getElementById('watermarkBtn').classList.toggle('btn-active', isWatermarkOn);
+        }
+
+        function adjustBeatOffset(delta) {
+            beatOffset = Math.round((beatOffset + delta) * 100) / 100;
+            document.getElementById('beatOffsetInput').value = beatOffset.toFixed(2);
+        }
+
+        function setBeatOffsetFromInput() {
+            const val = parseFloat(document.getElementById('beatOffsetInput').value);
+            if (!isNaN(val)) beatOffset = Math.round(val * 100) / 100;
+            document.getElementById('beatOffsetInput').value = beatOffset.toFixed(2);
+        }
+
+        function updateBeatWatermark() {
+            if (!isWatermarkOn || beats.length === 0) return;
+            const numEl = document.getElementById('wmBeatNum');
+            const subEl = document.getElementById('wmBeatSub');
+            if (!numEl) return;
+
+            // Find beat index at offset-adjusted time
+            const current = player ? player.getCurrentTime() + beatOffset : 0;
+            let idx = -1;
+            for (let i = beats.length - 1; i >= 0; i--) {
+                if (current >= beats[i].time) { idx = i; break; }
+            }
+            if (idx < 0) {
+                numEl.textContent = '-';
+                subEl.textContent = '';
+                return;
+            }
+            const beat = beats[idx];
+            numEl.textContent = beat.beatNumber;
+            subEl.textContent = `第 ${beat.groupIndex + 1} 個八拍`;
         }
 
         // ==================== Beta: Beat Preview (multi-player) ====================
