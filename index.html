@@ -1512,6 +1512,9 @@
         }
 
         function addProgressTick(bar, pct, label) {
+            // Hide markers outside the visible progress bar range
+            if (pct < 0 || pct > 100) return;
+
             const tick = document.createElement('div');
             tick.className = 'progress-group-tick';
             tick.style.left = pct + '%';
@@ -1573,13 +1576,13 @@
             track.appendChild(thumb);
 
             // Click/drag to seek within current 8-count
+            // Display maps beatPos → pct: pct = (beatPos + 1) / beatsPerGroup * 100
+            // So seek maps pct → beatPos: beatPos = ratio * beatsPerGroup - 1
             function seekFromEvent(e) {
                 const rect = track.getBoundingClientRect();
                 const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                // ratio 0→1 maps to beat position -1 to beatsPerGroup-1 (i.e. "8" to "8")
-                // but actual group range is beat 0..beatsPerGroup
-                const beatPos = ratio * beatsPerGroup;
-                const clampedPos = Math.max(0, Math.min(beatsPerGroup, beatPos));
+                const beatPos = ratio * beatsPerGroup - 1;
+                const clampedPos = Math.max(0, Math.min(beatsPerGroup - 0.01, beatPos));
                 const groupIdx = currentBeatIndex >= 0 ? beats[currentBeatIndex].groupIndex : 0;
                 const groupStart = startTime + groupIdx * beatsPerGroup * beatInterval;
                 const time = groupStart + clampedPos * beatInterval;
