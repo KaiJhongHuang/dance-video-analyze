@@ -627,9 +627,15 @@
                 width: 100%;
             }
 
-            .settings-row .field input,
-            .settings-row .field select {
+            .settings-row .field > input,
+            .settings-row .field > select {
                 width: 100%;
+            }
+
+            .settings-row .field div > input {
+                width: auto;
+                flex: 1;
+                min-width: 0;
             }
 
             .settings-row > .btn {
@@ -639,8 +645,10 @@
 
             .capture-btn {
                 width: auto !important;
-                padding: 4px 10px;
-                font-size: 0.75rem;
+                min-width: 0 !important;
+                max-width: fit-content !important;
+                padding: 4px 6px;
+                font-size: 0.7rem;
                 flex-shrink: 0;
             }
 
@@ -660,11 +668,6 @@
 
             .speed-label-top, .speed-label-bottom {
                 font-size: 0.55rem;
-            }
-
-            .capture-btn {
-                padding: 4px 6px;
-                font-size: 0.7rem;
             }
 
             .url-row {
